@@ -1,8 +1,8 @@
 {
-  "name": "autoid",
+  "name": "AutoID",
   "description": "Build a personal website, blog, or portfolio with Astro.",
   "cloudflare": {
-    "label": "Astro Framework Starter",
+    "label": "Smart Automation Technologies",
     "products": [
       "Workers"
     ],
