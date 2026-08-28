@@ -1,0 +1,1 @@
+AutoID Android v0.8 scope: native branding assets, grouped-product home sections by category/stock, category subcategory chips, functional header cart navigation, native checkout with company/VAT and COD/BACS/Stripe payment choices, improved account login/register/Google UI, app privacy preferences. AI integration intentionally deferred.
