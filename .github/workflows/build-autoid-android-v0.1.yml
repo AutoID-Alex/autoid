@@ -27,10 +27,9 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK 37
+      - name: Install Android SDK 36
         run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platforms;android-37" "build-tools;37.0.0"
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -42,6 +41,8 @@ jobs:
           rm -rf android-build
           mkdir android-build
           unzip -q ci/autoid-android-v0.1.0-source.zip -d android-build
+          sed -i 's/compileSdk = 37/compileSdk = 36/' android-build/autoid-android-v0.1.0/app/build.gradle.kts
+          sed -i 's/targetSdk = 37/targetSdk = 36/' android-build/autoid-android-v0.1.0/app/build.gradle.kts
 
       - name: Build debug APK
         working-directory: android-build/autoid-android-v0.1.0
