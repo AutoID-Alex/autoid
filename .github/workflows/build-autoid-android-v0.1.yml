@@ -1,9 +1,9 @@
-name: Build AutoID Android v0.7
+name: Build AutoID Android v0.8
 
 on:
   push:
     branches:
-      - mobile-v0.7-built-in-product-relations
+      - mobile-v0.8-uix-commerce-checkout
   workflow_dispatch:
 
 permissions:
@@ -16,49 +16,71 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Apply v0.5 base migration
         run: |
           python3 ci/apply_v05.py
           python3 ci/fix_v05_experimental.py
+
       - name: Apply v0.6 migration
         run: |
           python3 ci/apply_v06.py
           python3 ci/fix_v06_navigation_parse.py
+
       - name: Apply v0.7 migration
         run: python3 ci/apply_v07.py
+
+      - name: Apply v0.8 migration
+        run: python3 ci/apply_v08.py
+
+      - name: Bundle AutoID branding assets
+        run: |
+          mkdir -p android-v0.1/app/src/main/res/drawable-nodpi
+          curl -fL --retry 3 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/2026/04/AUTOID-icon-1-png.webp" -o android-v0.1/app/src/main/res/drawable-nodpi/autoid_icon.webp
+          curl -fL --retry 3 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/Logo-AutoID.jpg" -o android-v0.1/app/src/main/res/drawable-nodpi/autoid_logo.jpg
+          test -s android-v0.1/app/src/main/res/drawable-nodpi/autoid_icon.webp
+          test -s android-v0.1/app/src/main/res/drawable-nodpi/autoid_logo.jpg
+
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+
       - name: Install Android SDK 36
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.4.1'
+
       - name: Build debug APK
         working-directory: android-v0.1
         run: gradle --no-daemon --stacktrace assembleDebug
+
       - name: Validate PHP bridge
         run: php -l wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+
       - name: Prepare release artifacts
         run: |
-          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v0.7.0-debug.apk
-          sha256sum AutoID-Professional-Solutions-v0.7.0-debug.apk > AutoID-Professional-Solutions-v0.7.0-debug.sha256
-          zip -qr AutoID-Android-v0.7.0-source.zip android-v0.1 RELEASE-v0.7.0.md ci/apply_v05.py ci/fix_v05_experimental.py ci/apply_v06.py ci/fix_v06_navigation_parse.py ci/apply_v07.py
-          cd wordpress && zip -qr ../AutoID-Mobile-Commerce-Bridge-v0.7.0.zip autoid-mobile-commerce && cd ..
+          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v0.8.0-debug.apk
+          sha256sum AutoID-Professional-Solutions-v0.8.0-debug.apk > AutoID-Professional-Solutions-v0.8.0-debug.sha256
+          zip -qr AutoID-Android-v0.8.0-source.zip android-v0.1 RELEASE-v0.8.0.md ci/apply_v08.py
+          cd wordpress && zip -qr ../AutoID-Mobile-Commerce-Bridge-v0.8.0.zip autoid-mobile-commerce && cd ..
+
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AutoID-Professional-Solutions-v0.7.0
+          name: AutoID-Professional-Solutions-v0.8.0
           path: |
-            AutoID-Professional-Solutions-v0.7.0-debug.apk
-            AutoID-Professional-Solutions-v0.7.0-debug.sha256
-            AutoID-Android-v0.7.0-source.zip
-            AutoID-Mobile-Commerce-Bridge-v0.7.0.zip
-            RELEASE-v0.7.0.md
+            AutoID-Professional-Solutions-v0.8.0-debug.apk
+            AutoID-Professional-Solutions-v0.8.0-debug.sha256
+            AutoID-Android-v0.8.0-source.zip
+            AutoID-Mobile-Commerce-Bridge-v0.8.0.zip
+            RELEASE-v0.8.0.md
           if-no-files-found: error
           retention-days: 7
