@@ -1,9 +1,9 @@
-name: Build AutoID Android v0.2
+name: Build AutoID Android v0.3
 
 on:
   push:
     branches:
-      - mobile-v0.2-major
+      - mobile-v0.3-commerce-ai-support
   workflow_dispatch:
 
 permissions:
@@ -32,16 +32,21 @@ jobs:
       - name: Build debug APK
         working-directory: android-v0.1
         run: gradle --no-daemon --stacktrace assembleDebug
-      - name: Prepare APK
+      - name: Prepare release artifacts
         run: |
-          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Shop-Support-v0.2.0-debug.apk
-          sha256sum AutoID-Shop-Support-v0.2.0-debug.apk > AutoID-Shop-Support-v0.2.0-debug.sha256
-      - name: Upload APK artifact
+          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v0.3.0-debug.apk
+          sha256sum AutoID-Professional-Solutions-v0.3.0-debug.apk > AutoID-Professional-Solutions-v0.3.0-debug.sha256
+          zip -qr AutoID-Android-v0.3.0-source.zip android-v0.1 RELEASE-v0.3.0.md
+          cd wordpress && zip -qr ../AutoID-Mobile-Commerce-Bridge-v0.3.0.zip autoid-mobile-commerce && cd ..
+      - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AutoID-Shop-Support-v0.2.0-debug
+          name: AutoID-Professional-Solutions-v0.3.0
           path: |
-            AutoID-Shop-Support-v0.2.0-debug.apk
-            AutoID-Shop-Support-v0.2.0-debug.sha256
+            AutoID-Professional-Solutions-v0.3.0-debug.apk
+            AutoID-Professional-Solutions-v0.3.0-debug.sha256
+            AutoID-Android-v0.3.0-source.zip
+            AutoID-Mobile-Commerce-Bridge-v0.3.0.zip
+            RELEASE-v0.3.0.md
           if-no-files-found: error
           retention-days: 7
