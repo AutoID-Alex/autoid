@@ -27,6 +27,40 @@ class AutoIdApi {
 
     fun product(id: Long): Product = product(JSONObject(get("$MOBILE/products/$id")))
 
+    fun productFamily(id: Long): ProductFamily {
+        val root = JSONObject(get("$MOBILE/products/$id/family"))
+        val model = root.optJSONObject("model")?.optString("label").orEmpty()
+        val groups = root.optJSONArray("groups") ?: JSONArray()
+        return ProductFamily(
+            productId = root.optLong("product_id", id),
+            model = model,
+            groups = (0 until groups.length()).mapNotNull { i -> groups.optJSONObject(i)?.let {
+                FamilyGroup(it.optString("key"), html(it.optString("label")), it.optInt("count"))
+            } },
+            supportAvailable = root.optBoolean("support_available")
+        )
+    }
+
+    fun familyProducts(id: Long, group: String, page: Int = 1): List<Product> {
+        val root = JSONObject(get("$MOBILE/products/$id/family/${enc(group)}?page=$page&per_page=20"))
+        val arr = root.optJSONArray("products") ?: JSONArray()
+        return (0 until arr.length()).mapNotNull { arr.optJSONObject(it)?.let(::product) }
+    }
+
+    fun productSupport(id: Long): List<SupportSection> {
+        val root = JSONObject(get("$MOBILE/products/$id/support"))
+        val sections = root.optJSONArray("sections") ?: JSONArray()
+        return (0 until sections.length()).mapNotNull { i -> sections.optJSONObject(i)?.let { s ->
+            val resources = s.optJSONArray("resources") ?: JSONArray()
+            SupportSection(
+                key = s.optString("key"),
+                label = html(s.optString("label")),
+                count = s.optInt("count"),
+                resources = (0 until resources.length()).mapNotNull { j -> resources.optJSONObject(j)?.let(::supportResource) }
+            )
+        } }
+    }
+
     fun categories(): List<ProductCategory> {
         val root = JSONObject(get("$MOBILE/categories"))
         val arr = root.optJSONArray("categories") ?: JSONArray()
@@ -39,9 +73,7 @@ class AutoIdApi {
         if (search.isBlank()) return emptyList()
         val root = JSONObject(get("$MOBILE/support?search=${enc(search)}"))
         val arr = root.optJSONArray("resources") ?: JSONArray()
-        return (0 until arr.length()).mapNotNull { i -> arr.optJSONObject(i)?.let {
-            SupportResource(it.optLong("id"), html(it.optString("title")), it.optString("url"), it.optString("type", "Resursă"), html(it.optString("summary")))
-        } }
+        return (0 until arr.length()).mapNotNull { i -> arr.optJSONObject(i)?.let(::supportResource) }
     }
 
     fun login(login:String,password:String):LoginResult {
@@ -60,6 +92,10 @@ class AutoIdApi {
         return (0 until a.length()).mapNotNull{i->a.optJSONObject(i)?.let{Order(it.optLong("id"),it.optString("number",it.optLong("id").toString()),it.optString("status_label",it.optString("status")),total(it),it.optString("created_at",it.optString("date_created")))}}
     }
 
+    private fun supportResource(o: JSONObject)=SupportResource(
+        o.optLong("id"), html(o.optString("title")), o.optString("url"), o.optString("type", "Resursă"), html(o.optString("summary"))
+    )
+
     private fun product(o:JSONObject): Product {
         val attrs = o.optJSONArray("attributes") ?: JSONArray()
         val images = o.optJSONArray("images") ?: JSONArray()
@@ -69,6 +105,10 @@ class AutoIdApi {
             price=o.optString("price_display", o.optString("price","Preț la cerere")), regularPrice=o.optString("regular_price"), salePrice=o.optString("sale_price"),
             currency=o.optString("currency","RON"), onSale=o.optBoolean("on_sale"), stockLabel=o.optString("stock_label"), inStock=o.optBoolean("in_stock",true),
             description=html(o.optString("description",o.optString("short_description"))), category=html(o.optString("category")), brand=html(o.optString("brand")),
+            model=html(o.optString("model")), deliveryLabel=html(o.optString("delivery_label")),
+            stockAutoId=o.optInt("stock_autoid").takeIf { o.has("stock_autoid") && !o.isNull("stock_autoid") },
+            stockDistributor=o.optInt("stock_distributor").takeIf { o.has("stock_distributor") && !o.isNull("stock_distributor") },
+            rating=o.optDouble("rating",0.0), reviewCount=o.optInt("review_count",0),
             supportQuery=o.optString("support_query",o.optString("sku")), attributes=(0 until attrs.length()).mapNotNull { i -> attrs.optJSONObject(i)?.let { a ->
                 val vals=a.optJSONArray("values")?:JSONArray(); ProductAttribute(html(a.optString("name")),(0 until vals.length()).map{vals.optString(it)})
             } }
@@ -82,7 +122,7 @@ class AutoIdApi {
     private fun post(url:String,body:String)=request("POST",url,body,null)
     private fun request(method:String,url:String,body:String?,token:String?):String {
         val c=URI(url).toURL().openConnection() as HttpURLConnection
-        c.requestMethod=method;c.connectTimeout=12000;c.readTimeout=20000;c.setRequestProperty("Accept","application/json");c.setRequestProperty("User-Agent","AutoID-Android/0.3.0")
+        c.requestMethod=method;c.connectTimeout=12000;c.readTimeout=20000;c.setRequestProperty("Accept","application/json");c.setRequestProperty("User-Agent","AutoID-Android/0.4.0")
         token?.let{c.setRequestProperty("Authorization","Bearer $it")}
         if(body!=null){c.doOutput=true;c.setRequestProperty("Content-Type","application/json");c.outputStream.use{it.write(body.toByteArray(StandardCharsets.UTF_8))}}
         val status=c.responseCode;val text=(if(status in 200..299)c.inputStream else c.errorStream)?.bufferedReader()?.use{it.readText()}.orEmpty();c.disconnect()
