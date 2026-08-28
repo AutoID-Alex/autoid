@@ -44,6 +44,7 @@ jobs:
           p.write_text(s[:a]+s[b:])
           PY
           python3 ci/apply_v100.py
+          python3 ci/fix_v100_kotlin.py
           python3 ci/patch_bridge_v100.py
 
       - name: Bundle transparent AutoID branding
@@ -85,7 +86,7 @@ jobs:
         run: |
           cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.0-debug.apk
           sha256sum AutoID-Professional-Solutions-v1.0.0-debug.apk > AutoID-Professional-Solutions-v1.0.0-debug.sha256
-          zip -qr AutoID-Android-v1.0.0-source.zip android-v0.1 RELEASE-v1.0.0.md ci/apply_v100.py ci/patch_bridge_v100.py ci/v100
+          zip -qr AutoID-Android-v1.0.0-source.zip android-v0.1 RELEASE-v1.0.0.md ci/apply_v100.py ci/fix_v100_kotlin.py ci/patch_bridge_v100.py ci/v100
           cd wordpress && zip -qr ../AutoID-Mobile-Commerce-Bridge-v1.0.0.zip autoid-mobile-commerce && cd ..
 
       - name: Upload release artifact
