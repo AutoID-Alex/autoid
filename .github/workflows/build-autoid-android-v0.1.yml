@@ -1,9 +1,9 @@
-name: Build AutoID Android v1.0.0
+name: Build AutoID Android v1.0.1
 
 on:
   push:
     branches:
-      - mobile-v1.0.0-release
+      - mobile-v1.0.1-catalog-product-fixes
   workflow_dispatch:
 
 permissions:
@@ -47,6 +47,11 @@ jobs:
           python3 ci/fix_v100_kotlin.py
           python3 ci/patch_bridge_v100.py
 
+      - name: Apply v1.0.1 fixes
+        run: |
+          python3 ci/apply_v101.py
+          python3 ci/patch_bridge_v101.py
+
       - name: Bundle transparent AutoID branding
         run: |
           sudo apt-get update -qq
@@ -84,20 +89,19 @@ jobs:
 
       - name: Prepare release artifacts
         run: |
-          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.0-debug.apk
-          sha256sum AutoID-Professional-Solutions-v1.0.0-debug.apk > AutoID-Professional-Solutions-v1.0.0-debug.sha256
-          zip -qr AutoID-Android-v1.0.0-source.zip android-v0.1 RELEASE-v1.0.0.md ci/apply_v100.py ci/fix_v100_kotlin.py ci/patch_bridge_v100.py ci/v100
-          cd wordpress && zip -qr ../AutoID-Mobile-Commerce-Bridge-v1.0.0.zip autoid-mobile-commerce && cd ..
+          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.1-debug.apk
+          sha256sum AutoID-Professional-Solutions-v1.0.1-debug.apk > AutoID-Professional-Solutions-v1.0.1-debug.sha256
+          zip -qr AutoID-Android-v1.0.1-source.zip android-v0.1 ci/apply_v100.py ci/fix_v100_kotlin.py ci/patch_bridge_v100.py ci/v100 ci/apply_v101.py ci/patch_bridge_v101.py
+          cd wordpress && zip -qr ../AutoID-Mobile-Commerce-Bridge-v1.0.1.zip autoid-mobile-commerce && cd ..
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AutoID-Professional-Solutions-v1.0.0
+          name: AutoID-Professional-Solutions-v1.0.1
           path: |
-            AutoID-Professional-Solutions-v1.0.0-debug.apk
-            AutoID-Professional-Solutions-v1.0.0-debug.sha256
-            AutoID-Android-v1.0.0-source.zip
-            AutoID-Mobile-Commerce-Bridge-v1.0.0.zip
-            RELEASE-v1.0.0.md
+            AutoID-Professional-Solutions-v1.0.1-debug.apk
+            AutoID-Professional-Solutions-v1.0.1-debug.sha256
+            AutoID-Android-v1.0.1-source.zip
+            AutoID-Mobile-Commerce-Bridge-v1.0.1.zip
           if-no-files-found: error
           retention-days: 7
