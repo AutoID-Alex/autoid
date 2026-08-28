@@ -17,7 +17,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Apply v0.5 migration
-        run: python3 ci/apply_v05.py
+        run: |
+          python3 ci/apply_v05.py
+          python3 ci/fix_v05_experimental.py
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
@@ -40,7 +42,7 @@ jobs:
         run: |
           cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v0.5.0-debug.apk
           sha256sum AutoID-Professional-Solutions-v0.5.0-debug.apk > AutoID-Professional-Solutions-v0.5.0-debug.sha256
-          zip -qr AutoID-Android-v0.5.0-source.zip android-v0.1 RELEASE-v0.5.0.md ci/apply_v05.py
+          zip -qr AutoID-Android-v0.5.0-source.zip android-v0.1 RELEASE-v0.5.0.md ci/apply_v05.py ci/fix_v05_experimental.py
           cd wordpress && zip -qr ../AutoID-Mobile-Commerce-Bridge-v0.5.0.zip autoid-mobile-commerce && cd ..
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
