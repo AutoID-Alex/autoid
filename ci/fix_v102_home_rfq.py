@@ -4,19 +4,20 @@ import re
 p = Path('android-v0.1/app/src/main/java/ro/autoid/app/V100Screens.kt')
 s = p.read_text()
 
-# Root HomeV100 invocation. V1.0.1 can format/rewrite the cart callback in several
-# ways, therefore do not anchor the new RFQ callback to addCart(). The AI callback
-# is a much more stable positional boundary: onRfq belongs immediately before onAi.
+# Root HomeV100 invocation. In V1.0.1 the whole invocation is one line and the
+# search callback itself contains V100Tab.Categories. Never use that token as an
+# end boundary because it truncates the call before onCart/onRfq/onAi.
 root_pos = s.find('HomeV100(')
 if root_pos < 0:
     raise SystemExit('HomeV100 root invocation missing')
-root_end = s.find('V100Tab.Categories', root_pos)
+root_end = s.find('\n', root_pos)
 if root_end < 0:
-    root_end = min(len(s), root_pos + 8000)
+    root_end = min(len(s), root_pos + 12000)
 root = s[root_pos:root_end]
 
+# V1.0.1 already wires addRfq in the root call. Only inject it for older layouts
+# where it is genuinely missing.
 if 'addRfq(' not in root:
-    # Handles {ai=true}, { ai = true }, multiline lambdas, etc.
     root2, n = re.subn(
         r'(\{\s*ai\s*=\s*true\s*\})',
         r'{ p -> addRfq(p) },\1',
@@ -24,7 +25,6 @@ if 'addRfq(' not in root:
         count=1
     )
     if n == 0:
-        # Secondary anchor: in case the lambda is written with a statement block.
         ai_at = root.find('ai=true')
         if ai_at < 0:
             ai_at = root.find('ai = true')
@@ -36,8 +36,8 @@ if 'addRfq(' not in root:
         root2 = root[:brace] + '{ p -> addRfq(p) },' + root[brace:]
     s = s[:root_pos] + root2 + s[root_end:]
 
-# HomeV100 declaration: add onRfq immediately before onAi. This avoids depending
-# on how onCart was formatted by the previous migration.
+# HomeV100 declaration: add onRfq immediately before onAi only when the previous
+# migration has not already done so.
 fn_pos = s.find('fun HomeV100(')
 if fn_pos < 0:
     raise SystemExit('HomeV100 declaration missing')
@@ -61,10 +61,6 @@ if hc_body < 0:
     raise SystemExit('HomeCard declaration body missing')
 head = s[hc_pos:hc_body]
 if 'onRfq:' not in head:
-    close = head.rfind(')')
-    if close < 0:
-        raise SystemExit('HomeCard declaration close missing')
-    # The generated signature ends in onCart: () -> Unit. Insert after it.
     cart_sig = re.search(r'onCart\s*:\s*\(\)\s*->\s*Unit', head)
     if not cart_sig:
         raise SystemExit('HomeCard onCart signature missing')
@@ -72,38 +68,8 @@ if 'onRfq:' not in head:
     head = head[:insert_at] + ',\n    onRfq: () -> Unit' + head[insert_at:]
     s = s[:hc_pos] + head + s[hc_body:]
 
-# Wire HomeCard calls. V1.0/V1.0.1 use compact lambdas; accept whitespace and
-# either explicit p or it-style callbacks. A HomeCard that already has onRfq is
-# left untouched.
-def add_homecard_rfq(match):
-    call = match.group(0)
-    if 'onRfq(' in call:
-        return call
-    # Add the RFQ callback after the last cart callback before the closing paren.
-    call2, n = re.subn(
-        r'(\{\s*onCart\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)\s*\})(\s*\))$',
-        lambda m: m.group(1) + ',{onRfq(' + m.group(2) + ')}' + m.group(3),
-        call,
-        count=1
-    )
-    if n:
-        return call2
-    call2, n = re.subn(
-        r'(\{\s*onCart\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*1\s*\)\s*\})(\s*\))$',
-        lambda m: m.group(1) + ',{onRfq(' + m.group(2) + ',1)}' + m.group(3),
-        call,
-        count=1
-    )
-    return call2 if n else call
-
-# Limit matching to one call at a time; generated HomeCard calls do not contain
-# nested ')' after their final callback except the callback invocation itself.
-for old in re.findall(r'HomeCard\([^\n]*\)', s):
-    new = add_homecard_rfq(re.match(r'.*', old).group(0))
-    if new != old:
-        s = s.replace(old, new, 1)
-
-# Deterministic fallbacks for known V1 compact calls.
+# The two Home lists in V1.0.1 already pass onRfq. Preserve them. If a prior
+# layout has only an onCart callback, add the matching RFQ callback.
 s = s.replace(
     '{onFavorite(p)},{onCart(p)})',
     '{onFavorite(p)},{onCart(p)},{onRfq(p)})'
@@ -121,8 +87,7 @@ s = s.replace(
     'HomeCard(r, commerce.isFavorite(r.id), { onOpen(r) }, { onFavorite(r) }, { onCart(r,1) }, { onRfq(r,1) })'
 )
 
-# In HomeV100, the known recommendation/liquidation calls may be compact enough
-# that the generic single-line matcher stops at onCart(p). Fix those explicitly.
+# Recommendation/liquidation calls can be compact. Add RFQ only if absent.
 s = re.sub(
     r'HomeCard\((p|o),([^\n]*?),\{onFavorite\(\1\)\},\{onCart\(\1\)\}\)',
     lambda m: 'HomeCard(' + m.group(1) + ',' + m.group(2) + ',{onFavorite(' + m.group(1) + ')},{onCart(' + m.group(1) + ')},{onRfq(' + m.group(1) + ')})',
@@ -147,4 +112,4 @@ if label_at >= 0:
 s = s[:hc_pos] + hc + s[hc_end:]
 
 p.write_text(s)
-print('Wired v1.0.2 Home RFQ callbacks using AI/signature anchors')
+print('Wired v1.0.2 Home RFQ callbacks with full HomeV100 call boundary')
