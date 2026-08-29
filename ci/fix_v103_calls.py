@@ -29,11 +29,16 @@ def call_end(text: str, open_idx: int) -> int:
     raise SystemExit('unterminated call')
 
 
-def replace_call_at(text: str, start: int, call_name: str, replacement: str) -> str:
+def call_slice(text: str, start: int, call_name: str):
     open_idx = text.find('(', start + len(call_name))
     if open_idx < 0:
         raise SystemExit(f'{call_name} open parenthesis missing')
     end = call_end(text, open_idx)
+    return open_idx, end, text[start:end]
+
+
+def replace_call_at(text: str, start: int, call_name: str, replacement: str) -> str:
+    _, end, _ = call_slice(text, start, call_name)
     return text[:start] + replacement + text[end:]
 
 
@@ -67,7 +72,7 @@ home_call = '''HomeV100(
 selected_category_call = '''CatalogV100(
     api = api,
     commerce = commerce,
-    category = category,
+    category = category!!,
     initialSearch = search,
     onBack = { category = null },
     onProduct = ::openProduct,
@@ -105,7 +110,7 @@ categories_tab_call = '''CatalogV100(
     scan = scan
 )'''
 
-# Only normalize root invocations, i.e. occurrences before the function declarations.
+# Normalize the single root Home invocation before its declaration.
 home_decl = s.find('fun HomeV100(')
 if home_decl < 0:
     raise SystemExit('HomeV100 declaration missing')
@@ -114,6 +119,9 @@ if home_root < 0 or home_root >= home_decl:
     raise SystemExit('HomeV100 root invocation missing')
 s = replace_call_at(s, home_root, 'HomeV100', home_call)
 
+# Normalize every CatalogV100 invocation that exists before the declaration.
+# Depending on earlier migrations there can legitimately be one or two root
+# invocations, so do not fail merely because one route was consolidated.
 catalog_decl = s.find('fun CatalogV100(')
 if catalog_decl < 0:
     raise SystemExit('CatalogV100 declaration missing')
@@ -123,16 +131,22 @@ while True:
     pos = s.find('CatalogV100(', pos, catalog_decl)
     if pos < 0:
         break
-    roots.append(pos)
-    pos += len('CatalogV100(')
+    _, end, body = call_slice(s, pos, 'CatalogV100')
+    roots.append((pos, body))
+    pos = end
 
-if len(roots) != 2:
-    raise SystemExit(f'Expected 2 root CatalogV100 invocations, found {len(roots)}')
+if not roots:
+    raise SystemExit('No root CatalogV100 invocation found')
 
-# Replace from right to left so offsets stay stable. The first root is the
-# selected-category route; the second root is the Categories tab route.
-s = replace_call_at(s, roots[1], 'CatalogV100', categories_tab_call)
-s = replace_call_at(s, roots[0], 'CatalogV100', selected_category_call)
+for start, body in reversed(roots):
+    compact = ''.join(body.split())
+    is_categories_tab = (
+        'category=null' in compact or
+        'CatalogV100(api,commerce,null,' in compact or
+        'onBack={tab=V100Tab.Home}' in compact
+    )
+    replacement = categories_tab_call if is_categories_tab else selected_category_call
+    s = replace_call_at(s, start, 'CatalogV100', replacement)
 
 p.write_text(s)
-print('Normalized v1.0.3 Home/Catalog root calls using declaration boundaries')
+print(f'Normalized v1.0.3 root calls: Home=1, Catalog={len(roots)}')
