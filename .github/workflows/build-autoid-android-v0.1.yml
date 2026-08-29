@@ -88,6 +88,9 @@ jobs:
           python3 ci/apply_v103.py
           python3 ci/fix_v103_calls.py
 
+      - name: Normalize v1.0.4 migration anchors
+        run: python3 ci/fix_v104_anchors.py
+
       - name: Apply v1.0.4 fixes
         run: |
           python3 ci/apply_v104.py
@@ -147,7 +150,7 @@ jobs:
         run: |
           cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.4-debug.apk
           sha256sum AutoID-Professional-Solutions-v1.0.4-debug.apk > AutoID-Professional-Solutions-v1.0.4-debug.sha256
-          zip -qr AutoID-Android-v1.0.4-source.zip android-v0.1 ci/apply_v100.py ci/fix_v100_kotlin.py ci/patch_bridge_v100.py ci/v100 ci/apply_v101.py ci/patch_bridge_v101.py ci/apply_v102.py ci/fix_v102_home_rfq.py ci/patch_bridge_v102.py ci/fix_v103_anchors.py ci/apply_v103.py ci/fix_v103_calls.py ci/patch_bridge_v103.py ci/apply_v104.py ci/patch_bridge_v104.py
+          zip -qr AutoID-Android-v1.0.4-source.zip android-v0.1 ci/apply_v100.py ci/fix_v100_kotlin.py ci/patch_bridge_v100.py ci/v100 ci/apply_v101.py ci/patch_bridge_v101.py ci/apply_v102.py ci/fix_v102_home_rfq.py ci/patch_bridge_v102.py ci/fix_v103_anchors.py ci/apply_v103.py ci/fix_v103_calls.py ci/patch_bridge_v103.py ci/fix_v104_anchors.py ci/apply_v104.py ci/patch_bridge_v104.py
 
       - name: Upload Android v1.0.4
         uses: actions/upload-artifact@v4
