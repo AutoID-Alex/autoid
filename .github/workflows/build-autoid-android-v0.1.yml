@@ -83,6 +83,7 @@ jobs:
         run: |
           python3 ci/fix_v103_anchors.py
           python3 ci/apply_v103.py
+          python3 ci/fix_v103_calls.py
           python3 ci/patch_bridge_v103.py
 
       - name: Bundle transparent AutoID branding
@@ -124,7 +125,7 @@ jobs:
         run: |
           cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.3-debug.apk
           sha256sum AutoID-Professional-Solutions-v1.0.3-debug.apk > AutoID-Professional-Solutions-v1.0.3-debug.sha256
-          zip -qr AutoID-Android-v1.0.3-source.zip android-v0.1 ci/apply_v100.py ci/fix_v100_kotlin.py ci/patch_bridge_v100.py ci/v100 ci/apply_v101.py ci/patch_bridge_v101.py ci/apply_v102.py ci/fix_v102_home_rfq.py ci/patch_bridge_v102.py ci/fix_v103_anchors.py ci/apply_v103.py ci/patch_bridge_v103.py
+          zip -qr AutoID-Android-v1.0.3-source.zip android-v0.1 ci/apply_v100.py ci/fix_v100_kotlin.py ci/patch_bridge_v100.py ci/v100 ci/apply_v101.py ci/patch_bridge_v101.py ci/apply_v102.py ci/fix_v102_home_rfq.py ci/patch_bridge_v102.py ci/fix_v103_anchors.py ci/apply_v103.py ci/fix_v103_calls.py ci/patch_bridge_v103.py
           cd wordpress && zip -qr ../AutoID-Mobile-Commerce-Bridge-v1.0.3.zip autoid-mobile-commerce && cd ..
 
       - name: Upload release artifact
