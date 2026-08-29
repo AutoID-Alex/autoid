@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 
 p = Path('android-v0.1/app/src/main/java/ro/autoid/app/V100Screens.kt')
 s = p.read_text()
@@ -30,43 +29,13 @@ def call_end(text: str, open_idx: int) -> int:
     raise SystemExit('unterminated call')
 
 
-def replace_call(text: str, marker_re: str, call_name: str, replacement: str, label: str) -> str:
-    m = re.search(marker_re, text)
-    if not m:
-        raise SystemExit(f'{label} marker missing')
-    start = text.find(call_name, m.start(), m.end())
-    if start < 0:
-        start = text.find(call_name, m.start())
-    if start < 0:
-        raise SystemExit(f'{label} call missing')
+def replace_call_at(text: str, start: int, call_name: str, replacement: str) -> str:
     open_idx = text.find('(', start + len(call_name))
     if open_idx < 0:
-        raise SystemExit(f'{label} open paren missing')
+        raise SystemExit(f'{call_name} open parenthesis missing')
     end = call_end(text, open_idx)
     return text[:start] + replacement + text[end:]
 
-
-category_call = '''CatalogV100(
-    api = api,
-    commerce = commerce,
-    category = category,
-    initialSearch = search,
-    onBack = { category = null },
-    onProduct = ::openProduct,
-    onFavorite = { product ->
-        commerce.toggleFavorite(product.id)
-        favTick++
-    },
-    onCart = { product -> addCart(product) },
-    onRfq = { product -> addRfq(product) },
-    onAi = { ai = true },
-    onFavorites = { favorites = true },
-    onHeaderCart = {
-        tab = V100Tab.Cart
-        category = null
-    },
-    scan = scan
-)'''
 
 home_call = '''HomeV100(
     api = api,
@@ -95,6 +64,28 @@ home_call = '''HomeV100(
     cartTick = cartTick
 )'''
 
+selected_category_call = '''CatalogV100(
+    api = api,
+    commerce = commerce,
+    category = category,
+    initialSearch = search,
+    onBack = { category = null },
+    onProduct = ::openProduct,
+    onFavorite = { product ->
+        commerce.toggleFavorite(product.id)
+        favTick++
+    },
+    onCart = { product -> addCart(product) },
+    onRfq = { product -> addRfq(product) },
+    onAi = { ai = true },
+    onFavorites = { favorites = true },
+    onHeaderCart = {
+        tab = V100Tab.Cart
+        category = null
+    },
+    scan = scan
+)'''
+
 categories_tab_call = '''CatalogV100(
     api = api,
     commerce = commerce,
@@ -114,31 +105,34 @@ categories_tab_call = '''CatalogV100(
     scan = scan
 )'''
 
-# Replace the selected-category Catalog route first so it cannot be confused
-# with the Categories-tab call below.
-s = replace_call(
-    s,
-    r'category\s*!=\s*null\s*->\s*CatalogV100\s*\(',
-    'CatalogV100',
-    category_call,
-    'selected category CatalogV100'
-)
+# Only normalize root invocations, i.e. occurrences before the function declarations.
+home_decl = s.find('fun HomeV100(')
+if home_decl < 0:
+    raise SystemExit('HomeV100 declaration missing')
+home_root = s.find('HomeV100(')
+if home_root < 0 or home_root >= home_decl:
+    raise SystemExit('HomeV100 root invocation missing')
+s = replace_call_at(s, home_root, 'HomeV100', home_call)
 
-s = replace_call(
-    s,
-    r'V100Tab\.Home\s*->\s*HomeV100\s*\(',
-    'HomeV100',
-    home_call,
-    'HomeV100 root'
-)
+catalog_decl = s.find('fun CatalogV100(')
+if catalog_decl < 0:
+    raise SystemExit('CatalogV100 declaration missing')
+roots = []
+pos = 0
+while True:
+    pos = s.find('CatalogV100(', pos, catalog_decl)
+    if pos < 0:
+        break
+    roots.append(pos)
+    pos += len('CatalogV100(')
 
-s = replace_call(
-    s,
-    r'V100Tab\.Categories\s*->\s*CatalogV100\s*\(',
-    'CatalogV100',
-    categories_tab_call,
-    'Categories CatalogV100 root'
-)
+if len(roots) != 2:
+    raise SystemExit(f'Expected 2 root CatalogV100 invocations, found {len(roots)}')
+
+# Replace from right to left so offsets stay stable. The first root is the
+# selected-category route; the second root is the Categories tab route.
+s = replace_call_at(s, roots[1], 'CatalogV100', categories_tab_call)
+s = replace_call_at(s, roots[0], 'CatalogV100', selected_category_call)
 
 p.write_text(s)
-print('Normalized v1.0.3 root Home/Catalog calls to named arguments')
+print('Normalized v1.0.3 Home/Catalog root calls using declaration boundaries')
