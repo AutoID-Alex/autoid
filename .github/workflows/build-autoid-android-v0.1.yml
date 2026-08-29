@@ -79,12 +79,8 @@ jobs:
           python3 ci/fix_v102_home_rfq.py
           python3 ci/patch_bridge_v102.py
 
-      - name: Apply v1.0.3 update
-        run: |
-          python3 ci/fix_v103_anchors.py
-          python3 ci/apply_v103.py
-          python3 ci/fix_v103_calls.py
-          python3 ci/patch_bridge_v103.py
+      - name: Apply Bridge v1.0.3 hero manager
+        run: python3 ci/patch_bridge_v103.py
 
       - name: Validate Bridge v1.0.3
         run: php -l wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
@@ -103,6 +99,12 @@ jobs:
           path: AutoID-Mobile-Commerce-Bridge-v1.0.3.zip
           if-no-files-found: error
           retention-days: 7
+
+      - name: Apply Android v1.0.3 update
+        run: |
+          python3 ci/fix_v103_anchors.py
+          python3 ci/apply_v103.py
+          python3 ci/fix_v103_calls.py
 
       - name: Bundle transparent AutoID branding
         run: |
