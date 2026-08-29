@@ -157,22 +157,16 @@ for start, body in reversed(roots):
         raise SystemExit('Unexpected nullable CatalogV100 root route after v1.0.1 migration')
     s = replace_call_at(s, start, 'CatalogV100', selected_category_call)
 
-catalog_decl = s.find('fun CatalogV100(')
-pos = catalog_decl + len('fun CatalogV100(')
-while True:
-    pos = s.find('CatalogV100(', pos)
-    if pos < 0:
-        break
-    _, end, body = call_slice(s, pos, 'CatalogV100')
-    args = top_level_args(body)
-    if args and not any('=' in a.split('->', 1)[0] for a in args):
-        if len(args) == 13:
-            args.insert(5, '{ subcategory -> active = subcategory }')
-            replacement = 'CatalogV100(\n        ' + ',\n        '.join(args) + '\n    )'
-            s = s[:pos] + replacement + s[end:]
-            pos += len(replacement)
-            continue
-    pos = end
+# HomeV100 was rewritten in v1.0.3, while SmartSearch already has the newer
+# signature from v1.0.1: api, query, onQueryChange, onSubmit, onProduct, scan.
+# Supply the missing product callback before scan.
+smart_old = 'SmartSearch(api, q, { q = it }, { onSearch(it) }, scan)'
+smart_new = 'SmartSearch(api, q, { q = it }, { onSearch(it) }, onProduct, scan)'
+if smart_old not in s:
+    if smart_new not in s:
+        raise SystemExit('Home SmartSearch invocation missing')
+else:
+    s = s.replace(smart_old, smart_new, 1)
 
 p.write_text(s)
 
@@ -180,9 +174,6 @@ lines = s.splitlines()
 for i, line in enumerate(lines, 1):
     if 'CatalogV100(' in line and 'fun CatalogV100(' not in line:
         print(f'CatalogV100 call at generated line {i}: {line.strip()}')
-print('--- GENERATED V100Screens.kt lines 332-346 ---')
-for i in range(332, min(347, len(lines) + 1)):
-    print(f'{i:04d}: {lines[i-1]}')
-print('--- END GENERATED SNIPPET ---')
-print(f'Normalized v1.0.3 root calls: Home=1, Catalog roots={len(roots)}; wired onSubcategory')
-raise SystemExit('Diagnostic stop after generated Kotlin snippet')
+    if 'SmartSearch(' in line and 'fun SmartSearch(' not in line:
+        print(f'SmartSearch call at generated line {i}: {line.strip()}')
+print(f'Normalized v1.0.3 root calls: Home=1, Catalog roots={len(roots)}; wired onSubcategory and SmartSearch onProduct')
