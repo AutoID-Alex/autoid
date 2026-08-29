@@ -1,4 +1,4 @@
-name: Build AutoID Android v1.0.4
+name: Build AutoID Android v1.0.4.2
 
 on:
   push:
@@ -91,28 +91,33 @@ jobs:
       - name: Normalize v1.0.4 migration anchors
         run: python3 ci/fix_v104_anchors.py
 
-      - name: Apply v1.0.4 fixes
+      - name: Apply v1.0.4.1 fixes
         run: |
           python3 ci/apply_v104.py
           python3 ci/fix_v104_root.py
           python3 ci/fix_v104_button_dimensions.py
           python3 ci/patch_bridge_v104.py
 
-      - name: Validate Bridge v1.0.4
+      - name: Apply v1.0.4.2 liquidation filters
+        run: |
+          python3 ci/apply_v1042.py
+          python3 ci/patch_bridge_v1042.py
+
+      - name: Validate Bridge v1.0.4.2
         run: php -l wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
 
-      - name: Package Bridge v1.0.4
+      - name: Package Bridge v1.0.4.2
         run: |
           cd wordpress
-          zip -qr ../AutoID-Mobile-Commerce-Bridge-v1.0.4.zip autoid-mobile-commerce
+          zip -qr ../AutoID-Mobile-Commerce-Bridge-v1.0.4.2.zip autoid-mobile-commerce
           cd ..
-          test -s AutoID-Mobile-Commerce-Bridge-v1.0.4.zip
+          test -s AutoID-Mobile-Commerce-Bridge-v1.0.4.2.zip
 
-      - name: Upload Bridge v1.0.4
+      - name: Upload Bridge v1.0.4.2
         uses: actions/upload-artifact@v4
         with:
-          name: AutoID-Mobile-Commerce-Bridge-v1.0.4
-          path: AutoID-Mobile-Commerce-Bridge-v1.0.4.zip
+          name: AutoID-Mobile-Commerce-Bridge-v1.0.4.2
+          path: AutoID-Mobile-Commerce-Bridge-v1.0.4.2.zip
           if-no-files-found: error
           retention-days: 7
 
@@ -150,18 +155,18 @@ jobs:
 
       - name: Prepare Android release artifacts
         run: |
-          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.4.1-debug.apk
-          sha256sum AutoID-Professional-Solutions-v1.0.4.1-debug.apk > AutoID-Professional-Solutions-v1.0.4.1-debug.sha256
-          zip -qr AutoID-Android-v1.0.4.1-source.zip android-v0.1 ci/apply_v100.py ci/fix_v100_kotlin.py ci/patch_bridge_v100.py ci/v100 ci/apply_v101.py ci/patch_bridge_v101.py ci/apply_v102.py ci/fix_v102_home_rfq.py ci/patch_bridge_v102.py ci/fix_v103_anchors.py ci/apply_v103.py ci/fix_v103_calls.py ci/patch_bridge_v103.py ci/fix_v104_anchors.py ci/apply_v104.py ci/fix_v104_root.py ci/fix_v104_button_dimensions.py ci/patch_bridge_v104.py
+          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.4.2-debug.apk
+          sha256sum AutoID-Professional-Solutions-v1.0.4.2-debug.apk > AutoID-Professional-Solutions-v1.0.4.2-debug.sha256
+          zip -qr AutoID-Android-v1.0.4.2-source.zip android-v0.1 ci/apply_v100.py ci/fix_v100_kotlin.py ci/patch_bridge_v100.py ci/v100 ci/apply_v101.py ci/patch_bridge_v101.py ci/apply_v102.py ci/fix_v102_home_rfq.py ci/patch_bridge_v102.py ci/fix_v103_anchors.py ci/apply_v103.py ci/fix_v103_calls.py ci/patch_bridge_v103.py ci/fix_v104_anchors.py ci/apply_v104.py ci/fix_v104_root.py ci/fix_v104_button_dimensions.py ci/patch_bridge_v104.py ci/apply_v1042.py ci/patch_bridge_v1042.py
 
-      - name: Upload Android v1.0.4.1
+      - name: Upload Android v1.0.4.2
         uses: actions/upload-artifact@v4
         with:
-          name: AutoID-Professional-Solutions-v1.0.4.1
+          name: AutoID-Professional-Solutions-v1.0.4.2
           path: |
-            AutoID-Professional-Solutions-v1.0.4.1-debug.apk
-            AutoID-Professional-Solutions-v1.0.4.1-debug.sha256
-            AutoID-Android-v1.0.4.1-source.zip
-            AutoID-Mobile-Commerce-Bridge-v1.0.4.zip
+            AutoID-Professional-Solutions-v1.0.4.2-debug.apk
+            AutoID-Professional-Solutions-v1.0.4.2-debug.sha256
+            AutoID-Android-v1.0.4.2-source.zip
+            AutoID-Mobile-Commerce-Bridge-v1.0.4.2.zip
           if-no-files-found: error
           retention-days: 7
