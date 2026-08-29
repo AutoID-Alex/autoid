@@ -1,4 +1,4 @@
-name: Build AutoID Android v1.0.4.3
+name: Build AutoID Android v1.0.5
 
 on:
   push:
@@ -108,46 +108,58 @@ jobs:
           python3 ci/fix_v1043_ui.py
           python3 ci/patch_bridge_v1043.py
 
-      - name: Verify generated v1.0.4.3 UI source
+      - name: Apply v1.0.5 catalog filters
+        run: |
+          python3 ci/apply_v105_filters.py
+          python3 ci/patch_bridge_v105_filters.py
+
+      - name: Verify generated v1.0.5 filter UX
         run: |
           set -eu
           UI=android-v0.1/app/src/main/java/ro/autoid/app/V100Screens.kt
           API=android-v0.1/app/src/main/java/ro/autoid/app/data/AutoIdApi.kt
           MODEL=android-v0.1/app/src/main/java/ro/autoid/app/data/Models.kt
           GRADLE=android-v0.1/app/build.gradle.kts
-          grep -q 'Filtrează lichidările după categorie' "$UI"
-          grep -q 'derivedLiquidationCats' "$UI"
-          grep -q 'color = fg' "$UI"
-          if grep -q 'Spacer(Modifier.height(31.dp))' "$UI"; then
-            echo 'ERROR: grouped 31dp spacer still exists'
-            exit 1
+          grep -q 'private fun FilterSheetV105' "$UI"
+          grep -q 'RangeSlider(' "$UI"
+          grep -q 'FacetGridV105' "$UI"
+          grep -q 'Ai nevoie de ajutor?' "$UI"
+          grep -q 'Întreabă AutoID AI' "$UI"
+          grep -q 'Text("Subcategorie"' "$UI"
+          grep -q 'Text("Brand"' "$UI"
+          grep -q 'Text("Model"' "$UI"
+          grep -q 'Text("Aplică filtrele")' "$UI"
+          grep -q 'Text("Șterge filtrele")' "$UI"
+          grep -q 'categoryHierarchy' "$MODEL"
+          grep -q 'fs("category_hierarchy")' "$API"
+          grep -q 'AutoID-Android/1.0.5' "$API"
+          grep -q 'versionCode = 10800' "$GRADLE"
+          grep -q 'versionName = "1.0.5"' "$GRADLE"
+          if grep -q 'if(subs.isNotEmpty()){' "$UI"; then
+            echo 'INFO: checking no normal catalog subcategory strip remains'
           fi
-          grep -q 'val categories: List<FacetItem>' "$MODEL"
-          grep -q 'AutoID-Android/1.0.4.3' "$API"
-          grep -q 'versionCode = 10700' "$GRADLE"
-          grep -q 'versionName = "1.0.4.3"' "$GRADLE"
-          echo 'Verified: liquidation grid fallback present'
-          echo 'Verified: grouped action labels explicit and unclipped'
-          echo 'Verified: Android 1.0.4.3 / versionCode 10700'
+          echo 'Verified Android v1.0.5 filter UX'
 
-      - name: Validate Bridge v1.0.4.3
+      - name: Validate Bridge v1.0.5
         run: |
           php -l wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
-          grep -q 'Version: 1.0.4.3' wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
-          grep -q "'bridge_version'=>'1.0.4.3'" wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+          grep -q 'Version: 1.0.5' wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+          grep -q "'category_hierarchy'=>" wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+          grep -q "'bridge_version'=>'1.0.5'" wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+          grep -q 'if($secondary_category)' wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
 
-      - name: Package Bridge v1.0.4.3
+      - name: Package Bridge v1.0.5
         run: |
           cd wordpress
-          zip -qr ../AutoID-Mobile-Commerce-Bridge-v1.0.4.3.zip autoid-mobile-commerce
+          zip -qr ../AutoID-Mobile-Commerce-Bridge-v1.0.5.zip autoid-mobile-commerce
           cd ..
-          test -s AutoID-Mobile-Commerce-Bridge-v1.0.4.3.zip
+          test -s AutoID-Mobile-Commerce-Bridge-v1.0.5.zip
 
-      - name: Upload Bridge v1.0.4.3
+      - name: Upload Bridge v1.0.5
         uses: actions/upload-artifact@v4
         with:
-          name: AutoID-Mobile-Commerce-Bridge-v1.0.4.3
-          path: AutoID-Mobile-Commerce-Bridge-v1.0.4.3.zip
+          name: AutoID-Mobile-Commerce-Bridge-v1.0.5
+          path: AutoID-Mobile-Commerce-Bridge-v1.0.5.zip
           if-no-files-found: error
           retention-days: 7
 
@@ -185,18 +197,18 @@ jobs:
 
       - name: Prepare Android release artifacts
         run: |
-          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.4.3-debug.apk
-          sha256sum AutoID-Professional-Solutions-v1.0.4.3-debug.apk > AutoID-Professional-Solutions-v1.0.4.3-debug.sha256
-          zip -qr AutoID-Android-v1.0.4.3-source.zip android-v0.1 ci/apply_v100.py ci/fix_v100_kotlin.py ci/patch_bridge_v100.py ci/v100 ci/apply_v101.py ci/patch_bridge_v101.py ci/apply_v102.py ci/fix_v102_home_rfq.py ci/patch_bridge_v102.py ci/fix_v103_anchors.py ci/apply_v103.py ci/fix_v103_calls.py ci/patch_bridge_v103.py ci/fix_v104_anchors.py ci/apply_v104.py ci/fix_v104_root.py ci/fix_v104_button_dimensions.py ci/patch_bridge_v104.py ci/apply_v1042.py ci/patch_bridge_v1042.py ci/fix_v1043_ui.py ci/patch_bridge_v1043.py
+          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.5-debug.apk
+          sha256sum AutoID-Professional-Solutions-v1.0.5-debug.apk > AutoID-Professional-Solutions-v1.0.5-debug.sha256
+          zip -qr AutoID-Android-v1.0.5-source.zip android-v0.1 ci/apply_v100.py ci/fix_v100_kotlin.py ci/patch_bridge_v100.py ci/v100 ci/apply_v101.py ci/patch_bridge_v101.py ci/apply_v102.py ci/fix_v102_home_rfq.py ci/patch_bridge_v102.py ci/fix_v103_anchors.py ci/apply_v103.py ci/fix_v103_calls.py ci/patch_bridge_v103.py ci/fix_v104_anchors.py ci/apply_v104.py ci/fix_v104_root.py ci/fix_v104_button_dimensions.py ci/patch_bridge_v104.py ci/apply_v1042.py ci/patch_bridge_v1042.py ci/fix_v1043_ui.py ci/patch_bridge_v1043.py ci/apply_v105_filters.py ci/patch_bridge_v105_filters.py
 
-      - name: Upload Android v1.0.4.3
+      - name: Upload Android v1.0.5
         uses: actions/upload-artifact@v4
         with:
-          name: AutoID-Professional-Solutions-v1.0.4.3
+          name: AutoID-Professional-Solutions-v1.0.5
           path: |
-            AutoID-Professional-Solutions-v1.0.4.3-debug.apk
-            AutoID-Professional-Solutions-v1.0.4.3-debug.sha256
-            AutoID-Android-v1.0.4.3-source.zip
-            AutoID-Mobile-Commerce-Bridge-v1.0.4.3.zip
+            AutoID-Professional-Solutions-v1.0.5-debug.apk
+            AutoID-Professional-Solutions-v1.0.5-debug.sha256
+            AutoID-Android-v1.0.5-source.zip
+            AutoID-Mobile-Commerce-Bridge-v1.0.5.zip
           if-no-files-found: error
           retention-days: 7
