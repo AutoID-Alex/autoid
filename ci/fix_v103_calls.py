@@ -42,6 +42,39 @@ def replace_call_at(text: str, start: int, call_name: str, replacement: str) -> 
     return text[:start] + replacement + text[end:]
 
 
+def top_level_args(call_text: str):
+    open_idx = call_text.find('(')
+    close_idx = len(call_text) - 1
+    body = call_text[open_idx + 1:close_idx]
+    args = []
+    start = 0
+    depth = 0
+    quote = None
+    escaped = False
+    for i, ch in enumerate(body):
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif ch == '\\':
+                escaped = True
+            elif ch == quote:
+                quote = None
+            continue
+        if ch in ('"', "'"):
+            quote = ch
+        elif ch in '([{':
+            depth += 1
+        elif ch in ')]}':
+            depth -= 1
+        elif ch == ',' and depth == 0:
+            args.append(body[start:i].strip())
+            start = i + 1
+    tail = body[start:].strip()
+    if tail:
+        args.append(tail)
+    return args
+
+
 home_call = '''HomeV100(
     api = api,
     commerce = commerce,
@@ -75,6 +108,7 @@ selected_category_call = '''CatalogV100(
     category = category!!,
     initialSearch = search,
     onBack = { category = null },
+    onSubcategory = ::openCategory,
     onProduct = ::openProduct,
     onFavorite = { product ->
         commerce.toggleFavorite(product.id)
@@ -91,26 +125,7 @@ selected_category_call = '''CatalogV100(
     scan = scan
 )'''
 
-categories_tab_call = '''CatalogV100(
-    api = api,
-    commerce = commerce,
-    category = null,
-    initialSearch = search,
-    onBack = { tab = V100Tab.Home },
-    onProduct = ::openProduct,
-    onFavorite = { product ->
-        commerce.toggleFavorite(product.id)
-        favTick++
-    },
-    onCart = { product -> addCart(product) },
-    onRfq = { product -> addRfq(product) },
-    onAi = { ai = true },
-    onFavorites = { favorites = true },
-    onHeaderCart = { tab = V100Tab.Cart },
-    scan = scan
-)'''
-
-# Normalize the single root Home invocation before its declaration.
+# Normalize Home root invocation.
 home_decl = s.find('fun HomeV100(')
 if home_decl < 0:
     raise SystemExit('HomeV100 declaration missing')
@@ -119,12 +134,13 @@ if home_root < 0 or home_root >= home_decl:
     raise SystemExit('HomeV100 root invocation missing')
 s = replace_call_at(s, home_root, 'HomeV100', home_call)
 
-# Normalize every CatalogV100 invocation that exists before the declaration.
-# Depending on earlier migrations there can legitimately be one or two root
-# invocations, so do not fail merely because one route was consolidated.
+# CatalogV100 in v1.0.1+ is a detail-category screen and its category parameter
+# is non-null. Earlier logic incorrectly classified a selected-category call as
+# a root call simply because its onBack lambda contained `category = null`.
 catalog_decl = s.find('fun CatalogV100(')
 if catalog_decl < 0:
     raise SystemExit('CatalogV100 declaration missing')
+
 roots = []
 pos = 0
 while True:
@@ -138,15 +154,47 @@ while True:
 if not roots:
     raise SystemExit('No root CatalogV100 invocation found')
 
+# Replace every root Catalog call using the selected-category wiring. A genuine
+# root categories screen is handled by the v1.0.1 category landing composable,
+# not by CatalogV100.
 for start, body in reversed(roots):
-    compact = ''.join(body.split())
-    is_categories_tab = (
-        'category=null' in compact or
-        'CatalogV100(api,commerce,null,' in compact or
-        'onBack={tab=V100Tab.Home}' in compact
-    )
-    replacement = categories_tab_call if is_categories_tab else selected_category_call
-    s = replace_call_at(s, start, 'CatalogV100', replacement)
+    args = top_level_args(body)
+    third = args[2].replace(' ', '') if len(args) > 2 else ''
+    if third == 'null' or third.endswith('=null'):
+        raise SystemExit('Unexpected nullable CatalogV100 root route after v1.0.1 migration')
+    s = replace_call_at(s, start, 'CatalogV100', selected_category_call)
+
+# Repair positional CatalogV100 calls that may exist in helper composables after
+# the declaration. v1.0.1 added onSubcategory before onProduct, so old positional
+# calls shift `scan` into onProduct and leave scan missing. Convert the common
+# helper call shape by inserting the missing subcategory callback immediately
+# after onBack when the call is still positional.
+catalog_decl = s.find('fun CatalogV100(')
+pos = catalog_decl + len('fun CatalogV100(')
+while True:
+    pos = s.find('CatalogV100(', pos)
+    if pos < 0:
+        break
+    _, end, body = call_slice(s, pos, 'CatalogV100')
+    args = top_level_args(body)
+    if args and not any('=' in a.split('->', 1)[0] for a in args):
+        # Expected positional shape:
+        # api, commerce, category, search, onBack, onProduct, onFavorite,
+        # onCart, onRfq, onAi, onFavorites, onHeaderCart, scan
+        if len(args) == 13:
+            args.insert(5, '{ subcategory -> active = subcategory }')
+            replacement = 'CatalogV100(\n        ' + ',\n        '.join(args) + '\n    )'
+            s = s[:pos] + replacement + s[end:]
+            pos += len(replacement)
+            continue
+    pos = end
 
 p.write_text(s)
-print(f'Normalized v1.0.3 root calls: Home=1, Catalog={len(roots)}')
+
+# Emit concise diagnostics into Actions logs so any remaining mismatch is
+# immediately visible without another blind patch.
+lines = s.splitlines()
+for i, line in enumerate(lines, 1):
+    if 'CatalogV100(' in line and 'fun CatalogV100(' not in line:
+        print(f'CatalogV100 call at generated line {i}: {line.strip()}')
+print(f'Normalized v1.0.3 root calls: Home=1, Catalog roots={len(roots)}; wired onSubcategory')
