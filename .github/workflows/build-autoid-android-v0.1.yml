@@ -52,6 +52,27 @@ jobs:
           python3 ci/apply_v101.py
           python3 ci/patch_bridge_v101.py
 
+      - name: Normalize v1.0.2 migration anchors
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('ci/apply_v102.py')
+          s=p.read_text()
+          s=s.replace(
+              "anchor='@Composable private fun CatalogCard('\nidx=s.index(anchor)",
+              "anchor='private fun CatalogCard('\nidx=s.rfind('@Composable',0,s.index(anchor))"
+          )
+          s=s.replace(
+              "start=s.index('@Composable private fun CatalogCard(')\nend=s.index('@Composable fun ProductV100',start)",
+              "catalog_fn=s.index('private fun CatalogCard(')\nstart=s.rfind('@Composable',0,catalog_fn)\nproduct_fn=s.index('fun ProductV100',catalog_fn)\nend=s.rfind('@Composable',catalog_fn,product_fn)"
+          )
+          s=s.replace(
+              "start=s.index('@Composable private fun HomeCard(')\nend=s.index('@Composable private fun DiscountChip',start)",
+              "home_fn=s.index('private fun HomeCard(')\nstart=s.rfind('@Composable',0,home_fn)\ndiscount_fn=s.index('private fun DiscountChip',home_fn)\nend=s.rfind('@Composable',home_fn,discount_fn)"
+          )
+          p.write_text(s)
+          PY
+
       - name: Apply v1.0.2 fixes
         run: |
           python3 ci/apply_v102.py
