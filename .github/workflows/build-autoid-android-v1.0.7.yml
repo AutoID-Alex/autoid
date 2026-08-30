@@ -70,7 +70,7 @@ jobs:
 
       - name: Apply v1.0.7 CRO UIX
         run: |
-          python3 ci/apply_v107_bundle.py
+          python3 ci/apply_v107_payload.py
           python3 ci/apply_v107_infinite_legacy.py
 
       - name: Verify generated v1.0.7 UX
@@ -142,7 +142,7 @@ jobs:
         run: |
           cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.7-debug.apk
           sha256sum AutoID-Professional-Solutions-v1.0.7-debug.apk > AutoID-Professional-Solutions-v1.0.7-debug.sha256
-          zip -qr AutoID-Android-v1.0.7-source.zip android-v0.1 ci/apply_v107_bundle.py ci/apply_v107_infinite_legacy.py
+          zip -qr AutoID-Android-v1.0.7-source.zip android-v0.1 ci/apply_v107_payload.py ci/v107_payload_1.txt ci/v107_payload_2.txt ci/v107_payload_3.txt ci/v107_payload_4.txt ci/v107_payload_5.txt ci/apply_v107_infinite_legacy.py
 
       - name: Upload Android v1.0.7
         uses: actions/upload-artifact@v4
