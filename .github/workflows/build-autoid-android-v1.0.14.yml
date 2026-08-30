@@ -1,0 +1,184 @@
+name: Build AutoID Android v1.0.14
+
+on:
+  push:
+    branches:
+      - mobile-v1.0.2-loop-pricing-liquidations
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply migrations through v1.0.6
+        run: |
+          python3 ci/apply_v05.py
+          python3 ci/fix_v05_experimental.py
+          python3 ci/apply_v06.py
+          python3 ci/fix_v06_navigation_parse.py
+          python3 ci/apply_v07.py
+          python3 ci/apply_v08.py
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('ci/apply_v100.py'); s=p.read_text(); a=s.index("# Replace the v0.8 bridge"); b=s.index("# Product model:",a); p.write_text(s[:a]+s[b:])
+          PY
+          python3 ci/apply_v100.py
+          python3 ci/fix_v100_kotlin.py
+          python3 ci/patch_bridge_v100.py
+          python3 ci/apply_v101.py
+          python3 ci/patch_bridge_v101.py
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('ci/apply_v102.py'); s=p.read_text()
+          s=s.replace("anchor='@Composable private fun CatalogCard('\nidx=s.index(anchor)","anchor='private fun CatalogCard('\nidx=s.rfind('@Composable',0,s.index(anchor))")
+          s=s.replace("start=s.index('@Composable private fun CatalogCard(')\nend=s.index('@Composable fun ProductV100',start)","catalog_fn=s.index('private fun CatalogCard(')\nstart=s.rfind('@Composable',0,catalog_fn)\nproduct_fn=s.index('fun ProductV100',catalog_fn)\nend=s.rfind('@Composable',catalog_fn,product_fn)")
+          s=s.replace("start=s.index('@Composable private fun HomeCard(')\nend=s.index('@Composable private fun DiscountChip',start)","home_fn=s.index('private fun HomeCard(')\nstart=s.rfind('@Composable',0,home_fn)\ndiscount_fn=s.index('private fun DiscountChip',home_fn)\nend=s.rfind('@Composable',home_fn,discount_fn)")
+          p.write_text(s)
+          PY
+          python3 ci/apply_v102.py
+          python3 ci/fix_v102_home_rfq.py
+          python3 ci/patch_bridge_v102.py
+          python3 ci/patch_bridge_v103.py
+          python3 ci/fix_v103_anchors.py
+          python3 ci/apply_v103.py
+          python3 ci/fix_v103_calls.py
+          python3 ci/fix_v104_anchors.py
+          python3 ci/apply_v104.py
+          python3 ci/fix_v104_root.py
+          python3 ci/fix_v104_button_dimensions.py
+          python3 ci/patch_bridge_v104.py
+          python3 ci/apply_v1042.py
+          python3 ci/patch_bridge_v1042.py
+          python3 ci/fix_v1043_ui.py
+          python3 ci/patch_bridge_v1043.py
+          python3 ci/apply_v105_filters.py
+          python3 ci/patch_bridge_v105_filters.py
+          python3 ci/apply_v106_home_hero.py
+          python3 ci/patch_bridge_v106_mega_hero.py
+
+      - name: Apply v1.0.7 through v1.0.13
+        run: |
+          python3 ci/apply_v107_payload.py
+          python3 ci/apply_v107_infinite_legacy.py
+          python3 ci/apply_v108.py
+          python3 ci/patch_unified_mobile_v110.py
+          python3 ci/apply_v109_hero_studio.py
+          python3 ci/patch_unified_mobile_v111_hero_studio.py
+          python3 ci/apply_v110_live_hero.py
+          python3 ci/patch_unified_mobile_v112_live_hero.py
+          python3 ci/apply_v1011_hero_loading_perf.py
+          python3 ci/patch_unified_mobile_v113_hero_perf.py
+          python3 ci/apply_v1012_loader_filters.py
+          python3 ci/apply_v1013_dynamic_filters_product_content.py
+          python3 ci/patch_unified_mobile_v114_dynamic_facets_product_content.py
+
+      - name: Apply v1.0.14 cart checkout account
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64,zlib
+          raw=Path('ci/v114_patch_payload.b64').read_text().strip()
+          Path('/tmp/apply_v1014.py').write_bytes(zlib.decompress(base64.b64decode(raw)))
+          PY
+          python3 /tmp/apply_v1014.py
+
+      - name: Verify v1.0.14 / v1.1.5
+        run: |
+          set -eu
+          UI=android-v0.1/app/src/main/java/ro/autoid/app/V100Screens.kt
+          COMMERCE=android-v0.1/app/src/main/java/ro/autoid/app/V114CommerceUx.kt
+          STORE=android-v0.1/app/src/main/java/ro/autoid/app/data/CommerceStore.kt
+          API=android-v0.1/app/src/main/java/ro/autoid/app/data/AutoIdApi.kt
+          GRADLE=android-v0.1/app/build.gradle.kts
+          PLUGIN=wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+          grep -q 'AutoID-Android/1.0.14' "$API"
+          grep -q 'versionCode = 11700' "$GRADLE"
+          grep -q 'versionName = "1.0.14"' "$GRADLE"
+          grep -q 'play-services-auth:21.2.0' "$GRADLE"
+          grep -q 'mutableIntStateOf' "$STORE"
+          grep -q 'cartRevisionState++' "$STORE"
+          grep -q 'CartV114' "$UI"
+          grep -q 'CheckoutV114' "$UI"
+          grep -q 'AccountV114' "$UI"
+          grep -q 'Costul tău' "$COMMERCE"
+          grep -q 'Mai adaugă' "$COMMERCE"
+          grep -q 'Total (incl. TVA)' "$COMMERCE"
+          grep -q 'Finalizare comandă' "$COMMERCE"
+          grep -q 'Continuă ca invitat' "$COMMERCE"
+          grep -q 'Continuă cu Google' "$COMMERCE"
+          grep -q 'Folosește aceeași adresă pentru facturare' "$COMMERCE"
+          grep -q 'Permite solicitarea unei recenzii' "$COMMERCE"
+          grep -q 'Version: 1.1.5' "$PLUGIN"
+          grep -q "bridge_version'=>'1.1.5'" "$PLUGIN"
+          grep -q 'mobile_shipping_config' "$PLUGIN"
+          grep -q 'free_shipping_min' "$PLUGIN"
+          grep -q '_autoid_review_consent' "$PLUGIN"
+          grep -q 'mobile_google_client_id' "$PLUGIN"
+          echo 'Verified reactive cart, Woo shipping/tax, checkout auth/billing/review, account redesign and header actions'
+
+      - name: Validate AutoID Mobile v1.1.5
+        run: php -l wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+
+      - name: Package AutoID Mobile v1.1.5
+        run: |
+          rm -rf wordpress/autoid-mobile
+          mv wordpress/autoid-mobile-commerce wordpress/autoid-mobile
+          mv wordpress/autoid-mobile/autoid-mobile-commerce.php wordpress/autoid-mobile/autoid-mobile.php
+          cd wordpress
+          zip -qr ../AutoID-Mobile-v1.1.5-WORDPRESS.zip autoid-mobile
+          cd ..
+
+      - name: Bundle transparent AutoID branding
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick
+          mkdir -p android-v0.1/app/src/main/res/drawable-nodpi
+          curl -fL --retry 3 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/Logo-AutoID.jpg" -o /tmp/autoid-logo.jpg
+          curl -fL --retry 3 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/2026/04/AUTOID-icon-1-png.webp" -o android-v0.1/app/src/main/res/drawable-nodpi/autoid_icon_v100.webp
+          convert /tmp/autoid-logo.jpg -alpha on -fuzz 8% -transparent white -trim +repage android-v0.1/app/src/main/res/drawable-nodpi/autoid_logo_transparent.png
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.4.1'
+
+      - name: Build debug APK
+        working-directory: android-v0.1
+        run: gradle --no-daemon --stacktrace assembleDebug
+
+      - name: Prepare v1.0.14 artifacts
+        run: |
+          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.14-debug.apk
+          sha256sum AutoID-Professional-Solutions-v1.0.14-debug.apk > AutoID-Professional-Solutions-v1.0.14-debug.sha256
+          zip -qr AutoID-Android-v1.0.14-source.zip android-v0.1 ci/v114_patch_payload.b64 ci/v114_ux_payload.b64 ci/apply_v1013_dynamic_filters_product_content.py ci/patch_unified_mobile_v114_dynamic_facets_product_content.py
+
+      - name: Upload v1.0.14
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoID-Professional-Solutions-v1.0.14
+          path: |
+            AutoID-Professional-Solutions-v1.0.14-debug.apk
+            AutoID-Professional-Solutions-v1.0.14-debug.sha256
+            AutoID-Android-v1.0.14-source.zip
+            AutoID-Mobile-v1.1.5-WORDPRESS.zip
+          if-no-files-found: error
+          retention-days: 7
