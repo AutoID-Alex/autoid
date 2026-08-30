@@ -1,0 +1,225 @@
+name: Build AutoID Android v1.0.6
+
+on:
+  push:
+    branches:
+      - mobile-v1.0.2-loop-pricing-liquidations
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply v0.5 base migration
+        run: |
+          python3 ci/apply_v05.py
+          python3 ci/fix_v05_experimental.py
+
+      - name: Apply v0.6 migration
+        run: |
+          python3 ci/apply_v06.py
+          python3 ci/fix_v06_navigation_parse.py
+
+      - name: Apply v0.7 migration
+        run: python3 ci/apply_v07.py
+
+      - name: Apply v0.8 migration
+        run: python3 ci/apply_v08.py
+
+      - name: Apply v1.0.0 migration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('ci/apply_v100.py')
+          s=p.read_text()
+          a=s.index("# Replace the v0.8 bridge")
+          b=s.index("# Product model:",a)
+          p.write_text(s[:a]+s[b:])
+          PY
+          python3 ci/apply_v100.py
+          python3 ci/fix_v100_kotlin.py
+          python3 ci/patch_bridge_v100.py
+
+      - name: Apply v1.0.1 fixes
+        run: |
+          python3 ci/apply_v101.py
+          python3 ci/patch_bridge_v101.py
+
+      - name: Normalize v1.0.2 migration anchors
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('ci/apply_v102.py')
+          s=p.read_text()
+          s=s.replace(
+              "anchor='@Composable private fun CatalogCard('\nidx=s.index(anchor)",
+              "anchor='private fun CatalogCard('\nidx=s.rfind('@Composable',0,s.index(anchor))"
+          )
+          s=s.replace(
+              "start=s.index('@Composable private fun CatalogCard(')\nend=s.index('@Composable fun ProductV100',start)",
+              "catalog_fn=s.index('private fun CatalogCard(')\nstart=s.rfind('@Composable',0,catalog_fn)\nproduct_fn=s.index('fun ProductV100',catalog_fn)\nend=s.rfind('@Composable',catalog_fn,product_fn)"
+          )
+          s=s.replace(
+              "start=s.index('@Composable private fun HomeCard(')\nend=s.index('@Composable private fun DiscountChip',start)",
+              "home_fn=s.index('private fun HomeCard(')\nstart=s.rfind('@Composable',0,home_fn)\ndiscount_fn=s.index('private fun DiscountChip',home_fn)\nend=s.rfind('@Composable',home_fn,discount_fn)"
+          )
+          p.write_text(s)
+          PY
+
+      - name: Apply v1.0.2 fixes
+        run: |
+          python3 ci/apply_v102.py
+          python3 ci/fix_v102_home_rfq.py
+          python3 ci/patch_bridge_v102.py
+
+      - name: Apply Bridge v1.0.3 hero manager
+        run: python3 ci/patch_bridge_v103.py
+
+      - name: Apply Android v1.0.3 update
+        run: |
+          python3 ci/fix_v103_anchors.py
+          python3 ci/apply_v103.py
+          python3 ci/fix_v103_calls.py
+
+      - name: Normalize v1.0.4 migration anchors
+        run: python3 ci/fix_v104_anchors.py
+
+      - name: Apply v1.0.4.1 fixes
+        run: |
+          python3 ci/apply_v104.py
+          python3 ci/fix_v104_root.py
+          python3 ci/fix_v104_button_dimensions.py
+          python3 ci/patch_bridge_v104.py
+
+      - name: Apply v1.0.4.2 liquidation filters
+        run: |
+          python3 ci/apply_v1042.py
+          python3 ci/patch_bridge_v1042.py
+
+      - name: Apply v1.0.4.3 robustness fixes
+        run: |
+          python3 ci/fix_v1043_ui.py
+          python3 ci/patch_bridge_v1043.py
+
+      - name: Apply v1.0.5 catalog filters
+        run: |
+          python3 ci/apply_v105_filters.py
+          python3 ci/patch_bridge_v105_filters.py
+
+      - name: Apply v1.0.6 Home and Mega Menu hero
+        run: |
+          python3 ci/apply_v106_home_hero.py
+          python3 ci/patch_bridge_v106_mega_hero.py
+
+      - name: Verify generated v1.0.6 Home UX
+        run: |
+          set -eu
+          UI=android-v0.1/app/src/main/java/ro/autoid/app/V100Screens.kt
+          API=android-v0.1/app/src/main/java/ro/autoid/app/data/AutoIdApi.kt
+          MODEL=android-v0.1/app/src/main/java/ro/autoid/app/data/Models.kt
+          GRADLE=android-v0.1/app/build.gradle.kts
+          BRIDGE=wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+
+          grep -q 'Spacer(Modifier.width(6.dp))' "$UI"
+          grep -q 'Modifier.width(126.dp).height(46.dp)' "$UI"
+          grep -q 'SectionHead("În stoc AutoID", "Vezi toate", onAllCategories)' "$UI"
+          grep -q 'data?.liquidationCategory' "$UI"
+          grep -q 'onCatalog = onAllCategories' "$UI"
+          grep -q 'primaryType = "catalog"' "$UI"
+          grep -q 'android.graphics.Color.parseColor(slide.background)' "$UI"
+          grep -q 'AutoID-Android/1.0.6' "$API"
+          grep -q 'liquidation_category' "$API"
+          grep -q 'val eyebrow: String' "$MODEL"
+          grep -q 'val intervalMs: Long' "$MODEL"
+          grep -q 'versionCode = 10900' "$GRADLE"
+          grep -q 'versionName = "1.0.6"' "$GRADLE"
+
+          grep -q "get_option('autoid_mega_menu_settings'" "$BRIDGE"
+          grep -q "'hero_source'=>'autoid-mega-menu'" "$BRIDGE"
+          grep -q "'source'=>'autoid-mega-menu'" "$BRIDGE"
+          grep -q "return \['type'=>'catalog','id'=>0\]" "$BRIDGE"
+          grep -q "return \['type'=>'category','id'=>(int)\$term->term_id\]" "$BRIDGE"
+          grep -q "return \['type'=>'product','id'=>(int)\$post->ID\]" "$BRIDGE"
+
+          if grep -A120 'private fun runHeroActionV103' "$UI" | grep -Eq 'openUrl|WebView|Intent\('; then
+            echo 'ERROR: Hero action contains web navigation'
+            exit 1
+          fi
+          echo 'Verified v1.0.6: native header, See all links, Mega Menu hero and no web navigation'
+
+      - name: Validate Bridge v1.0.6
+        run: |
+          php -l wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+          grep -q 'Version: 1.0.6' wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+
+      - name: Package Bridge v1.0.6
+        run: |
+          cd wordpress
+          zip -qr ../AutoID-Mobile-Commerce-Bridge-v1.0.6.zip autoid-mobile-commerce
+          cd ..
+          test -s AutoID-Mobile-Commerce-Bridge-v1.0.6.zip
+
+      - name: Upload Bridge v1.0.6
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoID-Mobile-Commerce-Bridge-v1.0.6
+          path: AutoID-Mobile-Commerce-Bridge-v1.0.6.zip
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Bundle transparent AutoID branding
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick
+          mkdir -p android-v0.1/app/src/main/res/drawable-nodpi
+          curl -fL --retry 3 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/Logo-AutoID.jpg" -o /tmp/autoid-logo.jpg
+          curl -fL --retry 3 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/2026/04/AUTOID-icon-1-png.webp" -o android-v0.1/app/src/main/res/drawable-nodpi/autoid_icon_v100.webp
+          convert /tmp/autoid-logo.jpg -alpha on -fuzz 8% -transparent white -trim +repage android-v0.1/app/src/main/res/drawable-nodpi/autoid_logo_transparent.png
+          test -s android-v0.1/app/src/main/res/drawable-nodpi/autoid_logo_transparent.png
+          test -s android-v0.1/app/src/main/res/drawable-nodpi/autoid_icon_v100.webp
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.4.1'
+
+      - name: Build debug APK
+        working-directory: android-v0.1
+        run: gradle --no-daemon --stacktrace assembleDebug
+
+      - name: Prepare Android release artifacts
+        run: |
+          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.6-debug.apk
+          sha256sum AutoID-Professional-Solutions-v1.0.6-debug.apk > AutoID-Professional-Solutions-v1.0.6-debug.sha256
+          zip -qr AutoID-Android-v1.0.6-source.zip android-v0.1 ci/apply_v100.py ci/fix_v100_kotlin.py ci/patch_bridge_v100.py ci/v100 ci/apply_v101.py ci/patch_bridge_v101.py ci/apply_v102.py ci/fix_v102_home_rfq.py ci/patch_bridge_v102.py ci/fix_v103_anchors.py ci/apply_v103.py ci/fix_v103_calls.py ci/patch_bridge_v103.py ci/fix_v104_anchors.py ci/apply_v104.py ci/fix_v104_root.py ci/fix_v104_button_dimensions.py ci/patch_bridge_v104.py ci/apply_v1042.py ci/patch_bridge_v1042.py ci/fix_v1043_ui.py ci/patch_bridge_v1043.py ci/apply_v105_filters.py ci/patch_bridge_v105_filters.py ci/apply_v106_home_hero.py ci/patch_bridge_v106_mega_hero.py
+
+      - name: Upload Android v1.0.6
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoID-Professional-Solutions-v1.0.6
+          path: |
+            AutoID-Professional-Solutions-v1.0.6-debug.apk
+            AutoID-Professional-Solutions-v1.0.6-debug.sha256
+            AutoID-Android-v1.0.6-source.zip
+            AutoID-Mobile-Commerce-Bridge-v1.0.6.zip
+          if-no-files-found: error
+          retention-days: 7
