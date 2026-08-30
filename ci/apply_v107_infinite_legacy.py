@@ -95,3 +95,23 @@ fun ProductList(
 s=s[:start]+new+s[end:]
 p.write_text(s)
 print('Applied v1.0.7 infinite scroll to legacy ProductList')
+
+# Checkout compile compatibility after the v1.0.7 UI migration.
+p=Path('android-v0.1/app/src/main/java/ro/autoid/app/V08Screens.kt')
+s=p.read_text()
+rounded='import androidx.compose.foundation.shape.RoundedCornerShape\n'
+if 'import androidx.compose.foundation.shape.CircleShape\n' not in s:
+    if rounded not in s: raise SystemExit('RoundedCornerShape import anchor missing')
+    s=s.replace(rounded, rounded+'import androidx.compose.foundation.shape.CircleShape\n', 1)
+modifier='import androidx.compose.ui.Modifier\n'
+if 'import androidx.compose.ui.draw.clip\n' not in s:
+    if modifier not in s: raise SystemExit('Modifier import anchor missing')
+    s=s.replace(modifier, modifier+'import androidx.compose.ui.draw.clip\n', 1)
+if 'import androidx.compose.ui.layout.ContentScale\n' not in s:
+    clip='import androidx.compose.ui.draw.clip\n'
+    s=s.replace(clip, clip+'import androidx.compose.ui.layout.ContentScale\n', 1)
+s=s.replace('color = Ink', 'color = Color(0xFF101828)')
+s=s.replace('color=Ink', 'color=Color(0xFF101828)')
+s=s.replace('else Ink', 'else Color(0xFF101828)')
+p.write_text(s)
+print('Fixed v1.0.7 checkout Compose imports and color scope')
