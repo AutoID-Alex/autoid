@@ -107,7 +107,7 @@ jobs:
         run: |
           cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.17-debug.apk
           sha256sum AutoID-Professional-Solutions-v1.0.17-debug.apk > AutoID-Professional-Solutions-v1.0.17-debug.sha256
-          zip -qr AutoID-Android-v1.0.17-source.zip android-v0.1 ci/apply_v1017_account_checkout.py ci/patch_mobile_v118_account.py ci/prepare_v1017_release.sh ci/v117small
+          zip -qr AutoID-Android-v1.0.17-source.zip android-v0.1 ci/apply_v1017_account_checkout.py ci/patch_mobile_v118_account.py ci/prepare_v1017_release.sh
 
       - name: Upload v1.0.17 release
         uses: actions/upload-artifact@v4
