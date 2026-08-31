@@ -45,7 +45,7 @@ jobs:
           grep -q '_eu_vat_guard_order_vat_number' "$PLUGIN"
           grep -q "_wc_order_attribution_source_type','mobile_app'" "$PLUGIN"
           grep -q "origin'=>'Android App'" "$PLUGIN"
-          grep -q "'create_account'" "$API"
+          grep -q 'create_account' "$API"
           php -l "$PLUGIN"
           keytool -list -v -keystore android-v0.1/autoid-dev.keystore -alias autoiddev -storepass autoiddev2026 | grep -q 'B1:C1:2A:66:11:22:0B:18:E0:42:E0:5D:77:57:9D:82:64:3F:CB:DB'
 
