@@ -96,7 +96,10 @@ jobs:
           import base64,zlib
           for source,target in [('ci/v115_patch_payload.b64','/tmp/apply_v1015.py'),('ci/v116_plugin_payload.b64','/tmp/patch_v116.py')]:
               raw=Path(source).read_text().strip()
-              Path(target).write_bytes(zlib.decompress(base64.b64decode(raw)))
+              raw += '=' * (-len(raw) % 4)
+              decoded=base64.b64decode(raw, validate=True)
+              Path(target).write_bytes(zlib.decompress(decoded))
+              print(source, 'decoded', len(decoded), 'bytes')
           PY
           python3 /tmp/apply_v1015.py
           python3 /tmp/patch_v116.py
