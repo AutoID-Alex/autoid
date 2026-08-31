@@ -77,10 +77,13 @@ new=''';GoogleButtonV114(clientId=cfg.googleClientId,api=api,session=session,onS
 if old not in s: raise SystemExit('Account Google anchor missing')
 s=s.replace(old,new,1)
 
+account_effect='    LaunchedEffect(Unit){runCatching{withContext(Dispatchers.IO){api.checkoutConfig()}}.onSuccess{cfg=it}}\n'
+if account_effect not in s: raise SystemExit('Account state anchor missing')
+s=s.replace(account_effect,'    var panel by remember{mutableStateOf("dashboard")}\n'+account_effect,1)
+
 start=s.index('        }else{',s.index('fun AccountV114'))
 end=s.index('            item{Box(Modifier.padding(start=14.dp,end=14.dp,top=3.dp)){OutlinedButton(onClick={session.clear();token=null;orders=emptyList();msg=""}',start)
 replacement='''        }else{
-            var panel by remember{mutableStateOf("dashboard")}
             item{Box(Modifier.padding(horizontal=14.dp)){ElevatedCard(shape=RoundedCornerShape(26.dp),colors=CardDefaults.elevatedCardColors(containerColor=C114Ink)){Column(Modifier.fillMaxWidth().padding(20.dp),verticalArrangement=Arrangement.spacedBy(7.dp)){Text("AUTOID ACCOUNT",fontSize=9.sp,fontWeight=FontWeight.ExtraBold,color=Color(0xFFFDBA8C));Text(session.customerEmail.ifBlank{email},fontSize=19.sp,fontWeight=FontWeight.ExtraBold,color=Color.White);Text("Professional Solutions",fontSize=10.sp,color=Color(0xFF98A2B3))}}}}
             item{Box(Modifier.padding(horizontal=14.dp)){ElevatedCard(shape=RoundedCornerShape(22.dp),colors=CardDefaults.elevatedCardColors(containerColor=Color.White)){Column(Modifier.fillMaxWidth().padding(8.dp)){listOf(
                 Triple("dashboard","Panou control",Icons.Default.Dashboard),Triple("orders","Comenzi",Icons.Default.ReceiptLong),Triple("details","Detalii cont",Icons.Default.ManageAccounts),Triple("addresses","Adrese Facturare / Livrare",Icons.Default.HomeWork),Triple("payments","Metode de plată",Icons.Default.CreditCard),Triple("preferences","Listă cu preferințe",Icons.Default.Tune)
