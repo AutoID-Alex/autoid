@@ -1,0 +1,115 @@
+name: Build AutoID Android v1.0.17 Release
+
+on:
+  push:
+    branches:
+      - mobile-v1.0.2-loop-pricing-liquidations
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare v1.0.17 / v1.1.8
+        run: bash ci/prepare_v1017_release.sh
+
+      - name: Verify release invariants
+        run: |
+          set -eu
+          UX=android-v0.1/app/src/main/java/ro/autoid/app/V117AccountCheckout.kt
+          API=android-v0.1/app/src/main/java/ro/autoid/app/data/AutoIdApi.kt
+          MODELS=android-v0.1/app/src/main/java/ro/autoid/app/data/Models.kt
+          V100=android-v0.1/app/src/main/java/ro/autoid/app/V100Screens.kt
+          GRADLE=android-v0.1/app/build.gradle.kts
+          PLUGIN=wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+          grep -q 'AutoID-Android/1.0.17' "$API"
+          grep -q 'versionCode = 12000' "$GRADLE"
+          grep -q 'versionName = "1.0.17"' "$GRADLE"
+          grep -q 'CheckoutV117(' "$V100"
+          grep -q 'AccountV117(' "$V100"
+          ! grep -q 'Cum continui?' "$UX"
+          grep -q 'Comanda ta' "$UX"
+          grep -q 'Informații de contact' "$UX"
+          grep -q 'Creează un cont AutoID' "$UX"
+          grep -q 'Bună,' "$UX"
+          grep -q 'Panou control' "$UX"
+          grep -q 'Dezautentificare' "$UX"
+          grep -q 'În stoc AutoID' "$UX"
+          grep -q 'Ultima comandă' "$UX"
+          grep -q 'Cod TVA (opțional)' "$UX"
+          grep -q 'data class OrderDetail' "$MODELS"
+          grep -q 'Version: 1.1.8' "$PLUGIN"
+          grep -q "bridge_version'=>'1.1.8'" "$PLUGIN"
+          grep -q "'/me/orders/(?P<id>\\d+)'" "$PLUGIN"
+          grep -q "'methods'=>\['GET','POST'\]" "$PLUGIN"
+          grep -q 'new_password' "$PLUGIN"
+          grep -q '_eu_vat_guard_vat_number' "$PLUGIN"
+          php -l "$PLUGIN"
+          keytool -list -v -keystore android-v0.1/autoid-dev.keystore -alias autoiddev -storepass autoiddev2026 | grep -q 'B1:C1:2A:66:11:22:0B:18:E0:42:E0:5D:77:57:9D:82:64:3F:CB:DB'
+
+      - name: Package AutoID Mobile v1.1.8
+        run: |
+          rm -rf wordpress/autoid-mobile
+          mv wordpress/autoid-mobile-commerce wordpress/autoid-mobile
+          mv wordpress/autoid-mobile/autoid-mobile-commerce.php wordpress/autoid-mobile/autoid-mobile.php
+          cd wordpress
+          zip -qr ../AutoID-Mobile-v1.1.8-WORDPRESS.zip autoid-mobile
+          cd ..
+
+      - name: Bundle AutoID branding
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick
+          mkdir -p android-v0.1/app/src/main/res/drawable-nodpi
+          curl -fL --retry 3 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/Logo-AutoID.jpg" -o /tmp/autoid-logo.jpg
+          curl -fL --retry 3 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/2026/04/AUTOID-icon-1-png.webp" -o android-v0.1/app/src/main/res/drawable-nodpi/autoid_icon_v100.webp
+          convert /tmp/autoid-logo.jpg -alpha on -fuzz 8% -transparent white -trim +repage android-v0.1/app/src/main/res/drawable-nodpi/autoid_logo_transparent.png
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.4.1'
+
+      - name: Build debug APK
+        working-directory: android-v0.1
+        run: gradle --no-daemon --stacktrace assembleDebug
+
+      - name: Verify APK signing certificate
+        run: keytool -printcert -jarfile android-v0.1/app/build/outputs/apk/debug/app-debug.apk | grep -q 'B1:C1:2A:66:11:22:0B:18:E0:42:E0:5D:77:57:9D:82:64:3F:CB:DB'
+
+      - name: Prepare artifacts
+        run: |
+          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.17-debug.apk
+          sha256sum AutoID-Professional-Solutions-v1.0.17-debug.apk > AutoID-Professional-Solutions-v1.0.17-debug.sha256
+          zip -qr AutoID-Android-v1.0.17-source.zip android-v0.1 ci/apply_v1017_account_checkout.py ci/patch_mobile_v118_account.py ci/prepare_v1017_release.sh ci/v117
+
+      - name: Upload v1.0.17 release
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoID-Professional-Solutions-v1.0.17-Release
+          path: |
+            AutoID-Professional-Solutions-v1.0.17-debug.apk
+            AutoID-Professional-Solutions-v1.0.17-debug.sha256
+            AutoID-Android-v1.0.17-source.zip
+            AutoID-Mobile-v1.1.8-WORDPRESS.zip
+          if-no-files-found: error
+          retention-days: 7
