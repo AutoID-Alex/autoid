@@ -1,9 +1,9 @@
-name: Build AutoID Android v1.0.17 Release v2
+name: Build AutoID Android v1.0.17 Split Artifacts
 
 on:
   push:
     branches:
-      - mobile-v1.0.2-loop-pricing-liquidations
+      - release-v1017-split-artifacts-20260831
   workflow_dispatch:
 
 permissions:
@@ -103,20 +103,25 @@ jobs:
       - name: Verify APK signing certificate
         run: keytool -printcert -jarfile android-v0.1/app/build/outputs/apk/debug/app-debug.apk | grep -q 'B1:C1:2A:66:11:22:0B:18:E0:42:E0:5D:77:57:9D:82:64:3F:CB:DB'
 
-      - name: Prepare artifacts
+      - name: Prepare release files
         run: |
           cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.17-debug.apk
           sha256sum AutoID-Professional-Solutions-v1.0.17-debug.apk > AutoID-Professional-Solutions-v1.0.17-debug.sha256
-          zip -qr AutoID-Android-v1.0.17-source.zip android-v0.1 ci/apply_v1017_account_checkout.py ci/patch_mobile_v118_account.py ci/prepare_v1017_release.sh
 
-      - name: Upload v1.0.17 release
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: AutoID-Professional-Solutions-v1.0.17-Release-v2
+          name: AutoID-Professional-Solutions-v1.0.17-APK
           path: |
             AutoID-Professional-Solutions-v1.0.17-debug.apk
             AutoID-Professional-Solutions-v1.0.17-debug.sha256
-            AutoID-Android-v1.0.17-source.zip
-            AutoID-Mobile-v1.1.8-WORDPRESS.zip
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload WordPress plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoID-Mobile-v1.1.8-WORDPRESS
+          path: AutoID-Mobile-v1.1.8-WORDPRESS.zip
           if-no-files-found: error
           retention-days: 7
