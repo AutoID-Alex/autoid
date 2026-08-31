@@ -1,0 +1,36 @@
+name: Diagnose AutoID v1.0.17 Signatures
+
+on:
+  push:
+    branches:
+      - diag-v1017-signatures-20260831
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare v1.0.16 base
+        run: bash ci/prepare_v1016_release.sh
+      - name: Print relevant signatures
+        run: |
+          set -eu
+          UI=android-v0.1/app/src/main/java/ro/autoid/app/V114CommerceUx.kt
+          V100=android-v0.1/app/src/main/java/ro/autoid/app/V100Screens.kt
+          echo '=== Checkout / Account composables ==='
+          grep -nE 'fun (CheckoutV114|AccountV114)|CheckoutV114\(|AccountV114\(' "$UI" "$V100" || true
+          echo '=== Checkout labels ==='
+          grep -nE 'Comanda ta|Informații de contact|Creează un cont AutoID|Panou control|Dezautentificare|În stoc AutoID|Ultima comandă|Cod TVA' "$UI" || true
+      - name: Upload generated v1.0.16 UI
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoID-v1.0.16-generated-ui
+          path: |
+            android-v0.1/app/src/main/java/ro/autoid/app/V114CommerceUx.kt
+            android-v0.1/app/src/main/java/ro/autoid/app/V100Screens.kt
+            android-v0.1/app/src/main/java/ro/autoid/app/data/Models.kt
+            android-v0.1/app/src/main/java/ro/autoid/app/data/AutoIdApi.kt
