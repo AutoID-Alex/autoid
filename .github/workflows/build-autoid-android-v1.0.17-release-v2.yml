@@ -56,7 +56,7 @@ jobs:
           grep -q 'data class OrderDetail' "$MODELS"
           grep -q 'Version: 1.1.8' "$PLUGIN"
           grep -q "bridge_version'=>'1.1.8'" "$PLUGIN"
-          grep -q "'/me/orders/(?P<id>\\d+)'" "$PLUGIN"
+          grep -Fq "'/me/orders/(?P<id>\\d+)'" "$PLUGIN"
           grep -q 'new_password' "$PLUGIN"
           grep -q '_eu_vat_guard_vat_number' "$PLUGIN"
           keytool -list -v -keystore android-v0.1/autoid-dev.keystore -alias autoiddev -storepass autoiddev2026 | grep -q 'B1:C1:2A:66:11:22:0B:18:E0:42:E0:5D:77:57:9D:82:64:3F:CB:DB'
