@@ -29,6 +29,9 @@ jobs:
       - name: Apply Android v1.0.19 account and performance
         run: python3 ci/apply_v1019_account_orders_performance.py
 
+      - name: Normalize v1.0.19 Kotlin structure
+        run: python3 ci/fix_v1019_kotlin_structure.py
+
       - name: Patch AutoID Mobile v1.1.8
         run: python3 ci/patch_mobile_v118_account.py
 
