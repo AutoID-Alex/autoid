@@ -11,7 +11,9 @@ s=GRADLE.read_text(); s=must(s,'versionCode = 12200','versionCode = 12300','vers
 s=API.read_text(); s=must(s,'AutoID-Android/1.0.19','AutoID-Android/1.0.20','user agent'); API.write_text(s)
 s=MANIFEST.read_text(); s=must(s,'<activity android:name=".MainActivity" android:exported="true">','<activity android:name=".MainActivity" android:exported="true" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden">','rotation config'); MANIFEST.write_text(s)
 if not TEMPLATE.exists(): raise SystemExit('V120 order detail template missing')
-TARGET.write_text(TEMPLATE.read_text())
+order_source=TEMPLATE.read_text()
+order_source=must(order_source,'@Composable\nfun OrderDetailV120(','@OptIn(ExperimentalMaterial3Api::class)\n@Composable\nfun OrderDetailV120(','Material3 TopAppBar opt-in')
+TARGET.write_text(order_source)
 
 s=V114.read_text()
 s=must(s,'var panel by remember{mutableStateOf("dashboard")};val accountScope=rememberCoroutineScope();val uriHandler=LocalUriHandler.current','var panel by remember{mutableStateOf("dashboard")};var selectedOrderId by remember{mutableStateOf<Long?>(null)};val accountScope=rememberCoroutineScope();val uriHandler=LocalUriHandler.current','account route state')
