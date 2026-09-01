@@ -20,7 +20,7 @@ jobs:
           python3 ci/apply_v1017_account_checkout.py
           python3 ci/apply_v1018_shopify_checkout.py
           python3 ci/apply_v1019_account_orders_performance.py
-          python3 ci/normalize_v1019_kotlin.py
+          python3 ci/fix_v1019_kotlin_structure.py
           python3 ci/patch_mobile_v118_account.py
           python3 ci/patch_mobile_v119_delivery_tracking.py
       - name: Upload generated sources
