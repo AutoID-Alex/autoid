@@ -25,11 +25,13 @@ API.write_text(s)
 
 # Home: Quick categories -> View all must actually open the complete product catalog.
 s=V100.read_text()
-pattern=r'SectionHead\("Categorii rapide","Vezi toate"\)\{.*?\};\s*LazyRow'
+pattern=r'SectionHead\s*\(\s*"Categorii rapide"\s*,\s*"Vezi toate"\s*\)\s*\{.*?\}\s*;?\s*LazyRow'
 replacement='SectionHead("Categorii rapide","Vezi toate"){onCategory(ProductCategory(0,"Categorii de produse",0))};LazyRow'
 s,n=re.subn(pattern,replacement,s,count=1,flags=re.S)
 if n==0:
-    raise SystemExit('Quick categories View all structural anchor missing')
+    pos=s.find('Categorii rapide')
+    snippet=s[max(0,pos-220):pos+420] if pos>=0 else 'text not found'
+    raise SystemExit('Quick categories View all structural anchor missing: '+snippet.replace('\n',' '))
 V100.write_text(s)
 
 s=V114.read_text()
