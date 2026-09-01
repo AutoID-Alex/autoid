@@ -1,0 +1,38 @@
+name: Inspect generated v1.0.19 sources
+
+on:
+  push:
+    branches:
+      - mobile-v1.0.20-order-detail-rotation
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare v1.0.19 generated sources
+        run: |
+          bash ci/prepare_v1016_release.sh
+          python3 ci/apply_v1017_account_checkout.py
+          python3 ci/apply_v1018_shopify_checkout.py
+          python3 ci/apply_v1019_account_orders_performance.py
+          python3 ci/normalize_v1019_kotlin.py
+          python3 ci/patch_mobile_v118_account.py
+          python3 ci/patch_mobile_v119_delivery_tracking.py
+      - name: Upload generated sources
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-v1019-sources
+          path: |
+            android-v0.1/app/src/main/java/ro/autoid/app/V114CommerceUx.kt
+            android-v0.1/app/src/main/java/ro/autoid/app/V100Screens.kt
+            android-v0.1/app/src/main/java/ro/autoid/app/MainActivity.kt
+            android-v0.1/app/src/main/java/ro/autoid/app/data/AutoIdApi.kt
+            android-v0.1/app/src/main/java/ro/autoid/app/data/Models.kt
+            android-v0.1/app/src/main/AndroidManifest.xml
+            wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+          retention-days: 1
