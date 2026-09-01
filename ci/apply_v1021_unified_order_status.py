@@ -123,6 +123,8 @@ private fun OrderStatusV120(d:OrderDetail){
 
 '''
 s=s[:start]+new_status+s[end:]
+if '@OptIn(ExperimentalMaterial3Api::class)\n@Composable\nfun OrderDetailV120' not in s:
+    s=must(s,'@Composable\nfun OrderDetailV120','@OptIn(ExperimentalMaterial3Api::class)\n@Composable\nfun OrderDetailV120','Material3 TopAppBar opt-in')
 V120.write_text(s)
 
 print('Applied Android v1.0.21 unified order status: dashboard, order list and order detail')
