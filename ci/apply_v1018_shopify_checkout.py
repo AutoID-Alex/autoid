@@ -46,16 +46,12 @@ if 'import androidx.compose.ui.platform.LocalUriHandler\n' not in s:
         if anchor not in s: raise SystemExit('Compose import anchor missing')
         s=s.replace(anchor,'import androidx.compose.ui.platform.LocalUriHandler\n'+anchor,1)
 
-# Checkout must open as guest checkout. Login is an optional disclosure, not a competing checkout path.
-s,n=re.subn(r'var\s+authMode\s+by\s+remember\s*\{\s*mutableStateOf\("(?:login|guest)"\)\s*\}',
-            'var authMode by remember{mutableStateOf("guest")}',s,count=1)
-if n==0 and 'var authMode by remember{mutableStateOf("guest")}' not in s:
-    raise SystemExit('Checkout authMode state anchor missing')
-
-# Replace the v1.0.17 continuation selector with a compact Shopify-like account disclosure.
+# Preserve the existing conditional authenticated/guest state. Login becomes an optional disclosure.
 start_anchor='            item{SectionV114(Icons.Default.Person,"Informații de contact","Autentificare sau checkout rapid"){' 
 if start_anchor not in s:
-    raise SystemExit('v1.0.17 checkout auth block anchor missing')
+    pos=s.find('Autentificare sau checkout rapid')
+    snippet=s[max(0,pos-220):pos+420] if pos>=0 else 'text not found'
+    raise SystemExit('v1.0.17 checkout auth block anchor missing: '+snippet.replace('\n',' '))
 start=s.index(start_anchor)
 end=s.index('            item{ElevatedCard(Modifier.fillMaxWidth().clickable{summaryOpen=!summaryOpen}',start)
 new_auth='''            item{
