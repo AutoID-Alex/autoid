@@ -25,11 +25,11 @@ API.write_text(s)
 
 # Home: Quick categories -> View all must actually open the complete product catalog.
 s=V100.read_text()
-old='SectionHead("Categorii rapide","Vezi toate"){};'
-new='SectionHead("Categorii rapide","Vezi toate"){onCategory(ProductCategory(0,"Categorii de produse",0))};'
-if old not in s:
-    raise SystemExit('Quick categories View all anchor missing')
-s=s.replace(old,new,1)
+pattern=r'SectionHead\("Categorii rapide","Vezi toate"\)\{.*?\};\s*LazyRow'
+replacement='SectionHead("Categorii rapide","Vezi toate"){onCategory(ProductCategory(0,"Categorii de produse",0))};LazyRow'
+s,n=re.subn(pattern,replacement,s,count=1,flags=re.S)
+if n==0:
+    raise SystemExit('Quick categories View all structural anchor missing')
 V100.write_text(s)
 
 s=V114.read_text()
@@ -45,8 +45,10 @@ if 'import androidx.compose.ui.platform.LocalUriHandler\n' not in s:
         s=s.replace(anchor,'import androidx.compose.ui.platform.LocalUriHandler\n'+anchor,1)
 
 # Checkout must open as guest checkout. Login is an optional disclosure, not a competing checkout path.
-s=re.sub(r'var authMode by remember\{mutableStateOf\("(?:login|guest)"\)\}',
-         'var authMode by remember{mutableStateOf("guest")}',s,count=1)
+s,n=re.subn(r'var\s+authMode\s+by\s+remember\s*\{\s*mutableStateOf\("(?:login|guest)"\)\s*\}',
+            'var authMode by remember{mutableStateOf("guest")}',s,count=1)
+if n==0 and 'var authMode by remember{mutableStateOf("guest")}' not in s:
+    raise SystemExit('Checkout authMode state anchor missing')
 
 # Replace the v1.0.17 continuation selector with a compact Shopify-like account disclosure.
 start_anchor='            item{SectionV114(Icons.Default.Person,"Informații de contact","Autentificare sau checkout rapid"){' 
@@ -100,13 +102,11 @@ contact_pattern=r'SectionV114\((Icons\.Default\.[A-Za-z0-9_]+),"Contact","[^"]*"
 replacement=r'SectionV114(\1,"Informații de contact","Pentru confirmare și actualizările comenzii.")'
 s,n=re.subn(contact_pattern,replacement,s,count=1)
 if n==0:
-    # Some generated bases use a different icon expression; keep the replacement narrowly scoped to the title/subtitle pair.
     s,n=re.subn(r'"Contact","[^"]*"\)\{', '"Informații de contact","Pentru confirmare și actualizările comenzii."){', s, count=1)
 if n==0:
     raise SystemExit('Checkout Contact section anchor missing')
 
-# Small visual refinement: checkout cards and fields get tighter, calmer radii while retaining all inputs/checkboxes.
-# These replacements are intentionally scoped to the checkout source generated for V114.
+# Small visual refinement: tighter, calmer radii while retaining all fields and checkboxes.
 s=s.replace('shape=RoundedCornerShape(18.dp),colors=CardDefaults.elevatedCardColors(containerColor=Color.White),elevation=CardDefaults.elevatedCardElevation(defaultElevation=1.dp)',
             'shape=RoundedCornerShape(16.dp),colors=CardDefaults.elevatedCardColors(containerColor=Color.White),elevation=CardDefaults.elevatedCardElevation(defaultElevation=1.dp)')
 s=s.replace('shape=RoundedCornerShape(14.dp)', 'shape=RoundedCornerShape(13.dp)')
