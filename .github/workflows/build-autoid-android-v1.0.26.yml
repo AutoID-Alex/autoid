@@ -1,0 +1,139 @@
+name: Build AutoID Android v1.0.26
+
+on:
+  push:
+    branches:
+      - mobile-v1.0.26-home-cache-tabs-notifications
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Prepare generated release sources
+        run: |
+          bash ci/prepare_v1016_release.sh
+          python3 ci/apply_v1017_account_checkout.py
+          python3 ci/apply_v1018_shopify_checkout.py
+          python3 ci/apply_v1019_account_orders_performance.py
+          python3 ci/fix_v1019_kotlin_structure.py
+          python3 ci/apply_v1020_order_detail_rotation.py
+          python3 ci/apply_v1021_unified_order_status.py
+          python3 ci/patch_mobile_v118_account.py
+          python3 ci/patch_mobile_v119_delivery_tracking.py
+          python3 ci/patch_mobile_v1110_gls_awb.py
+          python3 ci/apply_v1022_stripe_sandbox.py
+          python3 ci/apply_v1023_product_reviews_compat.py
+          python3 ci/fix_v1023_kotlin_calls.py
+          python3 ci/apply_v1024_stripe_inline_googlepay.py
+          python3 ci/apply_v1025_stripe_stability_cart_ui.py
+          python3 ci/apply_v1026_home_tabs_notifications.py
+      - name: PHP lint v1.1.15
+        run: php -l wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+      - name: Verify v1.0.26 cache tabs notifications invariants
+        run: |
+          set -eu
+          HOME=android-v0.1/app/src/main/java/ro/autoid/app/V100Screens.kt
+          API=android-v0.1/app/src/main/java/ro/autoid/app/data/AutoIdApi.kt
+          MODELS=android-v0.1/app/src/main/java/ro/autoid/app/data/Models.kt
+          MAIN=android-v0.1/app/src/main/java/ro/autoid/app/MainActivity.kt
+          WORKER=android-v0.1/app/src/main/java/ro/autoid/app/OrderNotificationV126.kt
+          REVIEW=android-v0.1/app/src/main/java/ro/autoid/app/OrderReviewV126.kt
+          MANIFEST=android-v0.1/app/src/main/AndroidManifest.xml
+          GRADLE=android-v0.1/app/build.gradle.kts
+          PLUGIN=wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+          grep -q 'AutoID-Android/1.0.26' "$API"
+          grep -q 'versionCode = 12900' "$GRADLE"
+          grep -q 'versionName = "1.0.26"' "$GRADLE"
+          grep -q 'androidx.work:work-runtime-ktx:2.10.1' "$GRADLE"
+          grep -q 'HomeDiskCacheV126' "$HOME"
+          grep -q 'homeDataJsonV126' "$API"
+          grep -q 'heroSlidesJsonV126' "$API"
+          ! grep -q 'minimumWelcomeMs' "$HOME"
+          grep -q 'Filtrează după categorie' "$HOME"
+          grep -q 'familyProductsPage' "$API"
+          grep -q 'FamilyProductsPage' "$MODELS"
+          grep -q "\['accessories','consumables'\]" "$PLUGIN"
+          grep -q "'filters'=>\$filters" "$PLUGIN"
+          grep -q 'POST_NOTIFICATIONS' "$MANIFEST"
+          grep -q 'OrderNotificationV126.schedule' "$MAIN"
+          grep -q 'PeriodicWorkRequestBuilder' "$WORKER"
+          grep -q 'a plecat din depozitul AutoID' "$WORKER"
+          grep -q 'Revizuiește comanda' "$WORKER"
+          grep -q 'reviewConsent' "$MODELS"
+          grep -q "_autoid_review_consent" "$PLUGIN"
+          grep -q 'Lasă review pe Google' "$REVIEW"
+          grep -q 'submitProductReview' "$REVIEW"
+          grep -q 'Version: 1.1.15' "$PLUGIN"
+          grep -q 'com.stripe:stripe-android:22.6.1' "$GRADLE"
+          if grep -R -E 'sk_(test|live)_[A-Za-z0-9]+' android-v0.1/app/src/main/java; then exit 1; fi
+          keytool -list -v -keystore android-v0.1/autoid-dev.keystore -alias autoiddev -storepass autoiddev2026 | grep -q 'B1:C1:2A:66:11:22:0B:18:E0:42:E0:5D:77:57:9D:82:64:3F:CB:DB'
+      - name: Package AutoID Mobile v1.1.15
+        run: |
+          rm -rf wordpress/autoid-mobile
+          mv wordpress/autoid-mobile-commerce wordpress/autoid-mobile
+          mv wordpress/autoid-mobile/autoid-mobile-commerce.php wordpress/autoid-mobile/autoid-mobile.php
+          cd wordpress && zip -qr ../AutoID-Mobile-v1.1.15-WORDPRESS.zip autoid-mobile && cd ..
+      - name: Bundle AutoID branding
+        timeout-minutes: 4
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick
+          mkdir -p android-v0.1/app/src/main/res/drawable-nodpi
+          curl -fL --connect-timeout 10 --max-time 45 --retry 2 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/Logo-AutoID.jpg" -o /tmp/autoid-logo.jpg
+          curl -fL --connect-timeout 10 --max-time 45 --retry 2 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/2026/04/AUTOID-icon-1-png.webp" -o android-v0.1/app/src/main/res/drawable-nodpi/autoid_icon_v100.webp
+          convert /tmp/autoid-logo.jpg -alpha on -fuzz 8% -transparent white -trim +repage android-v0.1/app/src/main/res/drawable-nodpi/autoid_logo_transparent.png
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.4.1'
+      - name: Build debug APK
+        working-directory: android-v0.1
+        run: |
+          set -o pipefail
+          gradle --no-daemon --stacktrace assembleDebug 2>&1 | tee ../android-v1026-build.log
+      - name: Upload Android build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoID-v1.0.26-build-log
+          path: android-v1026-build.log
+          if-no-files-found: ignore
+          retention-days: 1
+      - name: Verify APK signing certificate
+        run: keytool -printcert -jarfile android-v0.1/app/build/outputs/apk/debug/app-debug.apk | grep -q 'B1:C1:2A:66:11:22:0B:18:E0:42:E0:5D:77:57:9D:82:64:3F:CB:DB'
+      - name: Prepare release files
+        run: |
+          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.26-debug.apk
+          sha256sum AutoID-Professional-Solutions-v1.0.26-debug.apk > AutoID-Professional-Solutions-v1.0.26-debug.sha256
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoID-Professional-Solutions-v1.0.26-APK
+          path: |
+            AutoID-Professional-Solutions-v1.0.26-debug.apk
+            AutoID-Professional-Solutions-v1.0.26-debug.sha256
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload WordPress plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoID-Mobile-v1.1.15-WORDPRESS
+          path: AutoID-Mobile-v1.1.15-WORDPRESS.zip
+          if-no-files-found: error
+          retention-days: 7
