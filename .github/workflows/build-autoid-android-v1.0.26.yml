@@ -34,6 +34,7 @@ jobs:
           python3 ci/apply_v1024_stripe_inline_googlepay.py
           python3 ci/apply_v1025_stripe_stability_cart_ui.py
           python3 ci/apply_v1026_home_tabs_notifications.py
+          python3 ci/fix_v1026_kotlin.py
       - name: PHP lint v1.1.15
         run: php -l wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
       - name: Verify v1.0.26 cache tabs notifications invariants
@@ -53,6 +54,8 @@ jobs:
           grep -q 'versionName = "1.0.26"' "$GRADLE"
           grep -q 'androidx.work:work-runtime-ktx:2.10.1' "$GRADLE"
           grep -q 'HomeDiskCacheV126' "$HOME"
+          grep -q 'homeContextV126=LocalContext.current' "$HOME"
+          grep -q 'familyCategory==0L' "$HOME"
           grep -q 'homeDataJsonV126' "$API"
           grep -q 'heroSlidesJsonV126' "$API"
           ! grep -q 'minimumWelcomeMs' "$HOME"
