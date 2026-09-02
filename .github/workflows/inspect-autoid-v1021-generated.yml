@@ -30,7 +30,6 @@ jobs:
           python3 ci/patch_mobile_v1110_gls_awb.py
           python3 ci/apply_v1022_stripe_sandbox.py
           python3 ci/apply_v1023_product_reviews_compat.py
-          python3 ci/fix_v1023_kotlin.py
       - name: Upload generated inspection files
         uses: actions/upload-artifact@v4
         with:
