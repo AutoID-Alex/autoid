@@ -34,7 +34,7 @@ jobs:
           python3 ci/apply_v1024_stripe_inline_googlepay.py
           python3 ci/apply_v1025_stripe_stability_cart_ui.py
           python3 ci/apply_v1026_home_tabs_notifications.py
-          python3 ci/fix_v1026_kotlin_compile.py
+          python3 ci/fix_v1026_kotlin.py
       - name: Upload generated inspection files
         uses: actions/upload-artifact@v4
         with:
