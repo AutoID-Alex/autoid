@@ -25,7 +25,6 @@ pl=Path('wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php'); php=pl.r
 php=php.replace("register_rest_route(self::NS, '/me/orders/(?P<id>\\d+)', ['methods'=>'GET','callback'=>[__CLASS__,'me_order_detail'],'permission_callback'=>[__CLASS__,'auth_permission']]);",
 "register_rest_route(self::NS, '/me/orders/(?P<id>\\d+)', ['methods'=>'GET','callback'=>[__CLASS__,'me_order_detail'],'permission_callback'=>[__CLASS__,'auth_permission']]);\n        register_rest_route(self::NS, '/me/orders/(?P<id>\\d+)/action', ['methods'=>'POST','callback'=>[__CLASS__,'me_order_action_v127'],'permission_callback'=>[__CLASS__,'auth_permission']]);")
 
-# add can_pay/cancel in list and detail
 old="'review_consent'=>$o->get_meta('_autoid_review_consent',true)==='yes']+$tracking;"
 new="'review_consent'=>$o->get_meta('_autoid_review_consent',true)==='yes','can_pay'=>$o->needs_payment() && !$o->is_paid() && $o->get_payment_method()==='stripe','can_cancel'=>!$o->is_paid() && $o->has_status(['pending','failed','on-hold'])]+$tracking;"
 php=php.replace(old,new)
@@ -37,31 +36,36 @@ action_func=r'''\n    public static function me_order_action_v127(WP_REST_Reques
 php=php.replace('    private static function account_address_payload($customer,$type) {',action_func+'\n    private static function account_address_payload($customer,$type) {',1)
 pl.write_text(php)
 
-# Notification improvements + correct review URL and dedicated icon
+# Notifications
 w=Path('android-v0.1/app/src/main/java/ro/autoid/app/OrderNotificationV126.kt'); ws=w.read_text()
 ws=ws.replace('R.drawable.autoid_icon_v100','R.drawable.ic_autoid_notification_v127')
 start=ws.index('class OrderNotificationWorkerV126')
 ws=ws[:start]+'''class OrderNotificationWorkerV126(appContext:Context,params:WorkerParameters):Worker(appContext,params){override fun doWork():Result{\n    val session=SessionStore(applicationContext);val token=session.accessToken?:return Result.success()\n    val orders=runCatching{AutoIdApi().orders(token)}.getOrElse{return Result.retry()}\n    val prefs=applicationContext.getSharedPreferences("autoid_order_watch_v126",Context.MODE_PRIVATE);val initialized=prefs.getBoolean("initialized",false);val edit=prefs.edit();val now=System.currentTimeMillis()\n    for(o in orders){\n        val base="order_${o.id}_";val oldStatus=prefs.getString(base+"status",null);val oldTracking=prefs.getString(base+"tracking","")?:"";val seen=prefs.getBoolean(base+"seen",false)\n        val created=runCatching{java.time.OffsetDateTime.parse(o.dateCreated).toInstant().toEpochMilli()}.getOrDefault(0L);val recent=created>0L && now-created<48L*60L*60L*1000L\n        val shouldNotifyAwb=o.trackingNumber.isNotBlank()&&oldTracking.isBlank()&&(initialized||seen||recent)\n        if(shouldNotifyAwb){OrderNotificationV126.notify(applicationContext,(o.id%Int.MAX_VALUE).toInt(),"Comanda #${o.number} a plecat din depozitul AutoID","AWB ${o.trackingNumber} a fost generat. Urmărește livrarea.")}\n        if((initialized||seen)&&o.statusCode=="completed"&&oldStatus!="completed"&&o.reviewConsent){OrderNotificationV126.notify(applicationContext,((o.id+100000)%Int.MAX_VALUE).toInt(),"Revizuiește comanda #${o.number}","Cum a fost experiența cu AutoID? Lasă-ne un review pe Google și, dacă dorești, recenzii produselor comandate.",o.id)}else if((initialized||seen)&&oldStatus!=null&&oldStatus!=o.statusCode&&o.statusCode!="completed"&&o.trackingNumber.isBlank()){OrderNotificationV126.notify(applicationContext,((o.id+200000)%Int.MAX_VALUE).toInt(),"Comanda #${o.number} · ${o.status}","Statusul comenzii tale AutoID a fost actualizat.")}\n        edit.putBoolean(base+"seen",true).putString(base+"status",o.statusCode).putString(base+"tracking",o.trackingNumber)\n    }\n    edit.putBoolean("initialized",true).apply();return Result.success()\n}}\n'''
 w.write_text(ws)
 
-# Review URL
+# Review URL deterministic replacement of the constant line
 r=Path('android-v0.1/app/src/main/java/ro/autoid/app/OrderReviewV126.kt'); rs=r.read_text()
-import re
-rs=re.sub(r'https://www\\.google\\.com/search[^"\\s]*','https://share.google/9DGE1LfVVLWj7gjjP',rs)
-r.write_text(rs)
+lines=rs.splitlines()
+for i,line in enumerate(lines):
+    if line.startswith('private const val GOOGLE_REVIEW_V126='):
+        lines[i]='private const val GOOGLE_REVIEW_V126="https://share.google/9DGE1LfVVLWj7gjjP"'
+        break
+else:
+    raise SystemExit('GOOGLE_REVIEW_V126 constant missing')
+r.write_text('\n'.join(lines)+'\n')
 
-# notification small icon vector
+# monochrome Android notification small icon, QR-like AutoID mark
 res=Path('android-v0.1/app/src/main/res/drawable');res.mkdir(parents=True,exist_ok=True)
 (res/'ic_autoid_notification_v127.xml').write_text('''<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24"><path android:fillColor="#FFFFFFFF" android:pathData="M3,3h7v7H3zM5,5v3h3V5zM14,3h7v7h-7zM16,5v3h3V5zM3,14h7v7H3zM5,16v3h3v-3zM13,13h3v3h-3zM17,13h4v2h-4zM17,16h2v2h-2zM20,17h1v4h-4v-2h3zM13,17h3v4h-3z"/></vector>''')
 
-# Order list action buttons
+# Order list actions
 ux=Path('android-v0.1/app/src/main/java/ro/autoid/app/V114CommerceUx.kt'); u=ux.read_text()
 old='''Column(horizontalAlignment=Alignment.End){val visualStatus=orderDisplayStatusV121(o.statusCode,o.trackingNumber,o.status);Text(visualStatus,fontSize=9.sp,fontWeight=FontWeight.Bold,color=if(orderIsTerminalV121(o.statusCode))MaterialTheme.colorScheme.error else C114Good);Text(o.total,fontWeight=FontWeight.ExtraBold,color=C114Ink,fontSize=12.sp);Icon(Icons.Default.ChevronRight,null,tint=C114Muted,modifier=Modifier.size(18.dp))}'''
 new='''Column(horizontalAlignment=Alignment.End){val visualStatus=orderDisplayStatusV121(o.statusCode,o.trackingNumber,o.status);Text(visualStatus,fontSize=9.sp,fontWeight=FontWeight.Bold,color=if(orderIsTerminalV121(o.statusCode))MaterialTheme.colorScheme.error else C114Good);Text(o.total,fontWeight=FontWeight.ExtraBold,color=C114Ink,fontSize=12.sp);if(o.canPay||o.canCancel){Row(horizontalArrangement=Arrangement.spacedBy(5.dp)){if(o.canPay)TextButton(onClick={selectedOrderId=o.id}){Text("Plătește",fontSize=9.sp,fontWeight=FontWeight.ExtraBold)};if(o.canCancel)TextButton(onClick={selectedOrderId=o.id}){Text("Anulează",fontSize=9.sp,color=MaterialTheme.colorScheme.error)}}}else Icon(Icons.Default.ChevronRight,null,tint=C114Muted,modifier=Modifier.size(18.dp))}'''
 if old not in u: raise SystemExit('order list anchor missing')
 u=u.replace(old,new,1);ux.write_text(u)
 
-# Order detail PaymentSheet actions
+# Detail actions using Stripe PaymentSheet for an existing unpaid order
 od=Path('android-v0.1/app/src/main/java/ro/autoid/app/V120OrderDetail.kt'); t=od.read_text()
 t=t.replace('import ro.autoid.app.ui.theme.AutoIdOrange','''import ro.autoid.app.ui.theme.AutoIdOrange\nimport com.stripe.android.PaymentConfiguration\nimport com.stripe.android.paymentsheet.PaymentSheet\nimport com.stripe.android.paymentsheet.PaymentSheetResult\nimport com.stripe.android.paymentsheet.rememberPaymentSheet''')
 t=t.replace('import kotlinx.coroutines.withContext','import kotlinx.coroutines.withContext\nimport kotlinx.coroutines.launch')
