@@ -36,6 +36,7 @@ jobs:
           python3 ci/apply_v1026_home_tabs_notifications.py
           python3 ci/fix_v1026_kotlin.py
           python3 ci/apply_v1027_order_actions_awb_review.py
+          python3 ci/fix_v1027_php_newlines.py
       - name: PHP lint v1.1.16
         run: php -l wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
       - name: Verify v1.0.27 invariants
