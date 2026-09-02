@@ -1,0 +1,151 @@
+name: Build AutoID Android v1.0.22
+
+on:
+  push:
+    branches:
+      - mobile-v1.0.22-stripe-sandbox
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare v1.0.16 base
+        run: bash ci/prepare_v1016_release.sh
+
+      - name: Apply Android v1.0.17 base
+        run: python3 ci/apply_v1017_account_checkout.py
+
+      - name: Apply Android v1.0.18 UIX
+        run: python3 ci/apply_v1018_shopify_checkout.py
+
+      - name: Apply Android v1.0.19 account and performance
+        run: python3 ci/apply_v1019_account_orders_performance.py
+
+      - name: Normalize v1.0.19 Kotlin structure
+        run: python3 ci/fix_v1019_kotlin_structure.py
+
+      - name: Apply Android v1.0.20 order detail and rotation
+        run: python3 ci/apply_v1020_order_detail_rotation.py
+
+      - name: Apply Android v1.0.21 unified order status
+        run: python3 ci/apply_v1021_unified_order_status.py
+
+      - name: Patch AutoID Mobile v1.1.8
+        run: python3 ci/patch_mobile_v118_account.py
+
+      - name: Patch AutoID Mobile v1.1.9
+        run: python3 ci/patch_mobile_v119_delivery_tracking.py
+
+      - name: Patch AutoID Mobile v1.1.10
+        run: python3 ci/patch_mobile_v1110_gls_awb.py
+
+      - name: Apply Android v1.0.22 and AutoID Mobile v1.1.11 Stripe Sandbox
+        run: python3 ci/apply_v1022_stripe_sandbox.py
+
+      - name: PHP lint v1.1.11
+        run: php -l wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+
+      - name: Verify v1.0.22 Stripe Sandbox invariants
+        run: |
+          set -eu
+          UX=android-v0.1/app/src/main/java/ro/autoid/app/V114CommerceUx.kt
+          MAIN=android-v0.1/app/src/main/java/ro/autoid/app/MainActivity.kt
+          API=android-v0.1/app/src/main/java/ro/autoid/app/data/AutoIdApi.kt
+          MODELS=android-v0.1/app/src/main/java/ro/autoid/app/data/Models.kt
+          GRADLE=android-v0.1/app/build.gradle.kts
+          PLUGIN=wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+          grep -q 'AutoID-Android/1.0.22' "$API"
+          grep -q 'versionCode = 12500' "$GRADLE"
+          grep -q 'versionName = "1.0.22"' "$GRADLE"
+          grep -q 'com.stripe:stripe-android:22.6.1' "$GRADLE"
+          grep -q 'rememberPaymentSheet' "$UX"
+          grep -q 'presentWithPaymentIntent' "$UX"
+          grep -q 'PaymentConfiguration.init' "$UX"
+          grep -q 'confirmStripePayment' "$API"
+          grep -q 'CheckoutV117(api, session, commerce' "$MAIN"
+          grep -q 'stripePaymentToken' "$MODELS"
+          grep -q 'Version: 1.1.11' "$PLUGIN"
+          grep -q '/payments/stripe/confirm' "$PLUGIN"
+          grep -q "stripe_sandbox_ready" "$PLUGIN"
+          grep -q "'status']??'')!=='succeeded'" "$PLUGIN"
+          grep -q 'autoid_stripe_amount_mismatch' "$PLUGIN"
+          grep -q 'autoid_stripe_currency_mismatch' "$PLUGIN"
+          grep -q "metadata\['order_id'\]" "$PLUGIN"
+          grep -q 'pk_test_' "$PLUGIN"
+          grep -q 'sk_test_' "$PLUGIN"
+          if grep -R -E 'sk_(test|live)_[A-Za-z0-9]+' android-v0.1/app/src/main/java; then echo 'Secret Stripe key detected in Android source'; exit 1; fi
+          if grep -q 'sk_live_' "$PLUGIN"; then echo 'Live Stripe secret key handling is forbidden in sandbox release'; exit 1; fi
+          keytool -list -v -keystore android-v0.1/autoid-dev.keystore -alias autoiddev -storepass autoiddev2026 | grep -q 'B1:C1:2A:66:11:22:0B:18:E0:42:E0:5D:77:57:9D:82:64:3F:CB:DB'
+
+      - name: Package AutoID Mobile v1.1.11
+        run: |
+          rm -rf wordpress/autoid-mobile
+          mv wordpress/autoid-mobile-commerce wordpress/autoid-mobile
+          mv wordpress/autoid-mobile/autoid-mobile-commerce.php wordpress/autoid-mobile/autoid-mobile.php
+          cd wordpress
+          zip -qr ../AutoID-Mobile-v1.1.11-WORDPRESS.zip autoid-mobile
+          cd ..
+
+      - name: Bundle AutoID branding
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick
+          mkdir -p android-v0.1/app/src/main/res/drawable-nodpi
+          curl -fL --retry 3 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/Logo-AutoID.jpg" -o /tmp/autoid-logo.jpg
+          curl -fL --retry 3 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/2026/04/AUTOID-icon-1-png.webp" -o android-v0.1/app/src/main/res/drawable-nodpi/autoid_icon_v100.webp
+          convert /tmp/autoid-logo.jpg -alpha on -fuzz 8% -transparent white -trim +repage android-v0.1/app/src/main/res/drawable-nodpi/autoid_logo_transparent.png
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.4.1'
+
+      - name: Build debug APK
+        working-directory: android-v0.1
+        run: gradle --no-daemon --stacktrace assembleDebug
+
+      - name: Verify APK signing certificate
+        run: keytool -printcert -jarfile android-v0.1/app/build/outputs/apk/debug/app-debug.apk | grep -q 'B1:C1:2A:66:11:22:0B:18:E0:42:E0:5D:77:57:9D:82:64:3F:CB:DB'
+
+      - name: Prepare release files
+        run: |
+          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.22-debug.apk
+          sha256sum AutoID-Professional-Solutions-v1.0.22-debug.apk > AutoID-Professional-Solutions-v1.0.22-debug.sha256
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoID-Professional-Solutions-v1.0.22-APK
+          path: |
+            AutoID-Professional-Solutions-v1.0.22-debug.apk
+            AutoID-Professional-Solutions-v1.0.22-debug.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload WordPress plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoID-Mobile-v1.1.11-WORDPRESS
+          path: AutoID-Mobile-v1.1.11-WORDPRESS.zip
+          if-no-files-found: error
+          retention-days: 7
