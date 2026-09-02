@@ -1,9 +1,9 @@
-name: Inspect AutoID generated v1.0.24
+name: Inspect AutoID generated v1.0.25
 
 on:
   push:
     branches:
-      - mobile-v1.0.25-stripe-stability-cart-ui
+      - mobile-v1.0.26-home-cache-tabs-notifications
   workflow_dispatch:
 
 permissions:
@@ -32,17 +32,15 @@ jobs:
           python3 ci/apply_v1023_product_reviews_compat.py
           python3 ci/fix_v1023_kotlin_calls.py
           python3 ci/apply_v1024_stripe_inline_googlepay.py
+          python3 ci/apply_v1025_stripe_stability_cart_ui.py
       - name: Upload generated inspection files
         uses: actions/upload-artifact@v4
         with:
-          name: AutoID-v1.0.24-generated-inspection-full
+          name: AutoID-v1.0.25-generated-inspection-full
           path: |
             android-v0.1/app/build.gradle.kts
             android-v0.1/app/src/main/AndroidManifest.xml
-            android-v0.1/app/src/main/java/ro/autoid/app/V100Screens.kt
-            android-v0.1/app/src/main/java/ro/autoid/app/V114CommerceUx.kt
-            android-v0.1/app/src/main/java/ro/autoid/app/data/AutoIdApi.kt
-            android-v0.1/app/src/main/java/ro/autoid/app/data/Models.kt
-            android-v0.1/app/src/main/res/values/stripe_autoid_v124.xml
+            android-v0.1/app/src/main/java/ro/autoid/app/
+            android-v0.1/app/src/main/res/values/
             wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
           retention-days: 1
