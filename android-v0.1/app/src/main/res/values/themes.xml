@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.AutoID" parent="android:style/Theme.Material.Light.NoActionBar">
+    <style name="Theme.AutoID" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="colorPrimary">#F7630C</item>
+        <item name="colorPrimaryVariant">#D94F00</item>
+        <item name="colorSecondary">#F7630C</item>
     </style>
 </resources>
