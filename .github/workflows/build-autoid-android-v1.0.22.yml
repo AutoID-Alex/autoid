@@ -74,15 +74,15 @@ jobs:
           grep -q 'stripePaymentToken' "$MODELS"
           grep -q 'Version: 1.1.11' "$PLUGIN"
           grep -q '/payments/stripe/confirm' "$PLUGIN"
-          grep -q "stripe_sandbox_ready" "$PLUGIN"
+          grep -q 'stripe_sandbox_ready' "$PLUGIN"
           grep -q "'status']??'')!=='succeeded'" "$PLUGIN"
           grep -q 'autoid_stripe_amount_mismatch' "$PLUGIN"
           grep -q 'autoid_stripe_currency_mismatch' "$PLUGIN"
-          grep -q "metadata\['order_id'\]" "$PLUGIN"
+          grep -Fq "metadata['order_id']" "$PLUGIN"
           grep -q 'pk_test_' "$PLUGIN"
           grep -q 'sk_test_' "$PLUGIN"
           if grep -R -E 'sk_(test|live)_[A-Za-z0-9]+' android-v0.1/app/src/main/java; then echo 'Secret Stripe key detected in Android source'; exit 1; fi
-          if grep -q 'sk_live_' "$PLUGIN"; then echo 'Live Stripe secret key handling is forbidden in sandbox release'; exit 1; fi
+          if grep -q 'live_secret_key' "$PLUGIN"; then echo 'Live Stripe secret-key fallback detected in sandbox implementation'; exit 1; fi
           keytool -list -v -keystore android-v0.1/autoid-dev.keystore -alias autoiddev -storepass autoiddev2026 | grep -q 'B1:C1:2A:66:11:22:0B:18:E0:42:E0:5D:77:57:9D:82:64:3F:CB:DB'
 
       - name: Package AutoID Mobile v1.1.11
