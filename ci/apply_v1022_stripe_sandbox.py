@@ -6,6 +6,13 @@ payload=Path('ci/v122_stripe_patch_payload.b64').read_text().strip()
 source=zlib.decompress(base64.b64decode(payload))
 exec(compile(source,'ci/apply_v1022_stripe_sandbox.py::<payload>','exec'))
 
+# Stripe Android 22.6.1 exposes Completed/Canceled as classes, not singleton objects.
+ux=Path('android-v0.1/app/src/main/java/ro/autoid/app/V114CommerceUx.kt')
+ux_text=ux.read_text()
+ux_text=ux_text.replace('PaymentSheetResult.Completed->{','is PaymentSheetResult.Completed->{')
+ux_text=ux_text.replace('PaymentSheetResult.Canceled->{','is PaymentSheetResult.Canceled->{')
+ux.write_text(ux_text)
+
 # Keep the security invariant human-readable next to the generated PHP implementation.
 plugin=Path('wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php')
 text=plugin.read_text()
