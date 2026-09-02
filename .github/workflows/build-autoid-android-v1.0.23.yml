@@ -67,12 +67,13 @@ jobs:
           mv wordpress/autoid-mobile/autoid-mobile-commerce.php wordpress/autoid-mobile/autoid-mobile.php
           cd wordpress && zip -qr ../AutoID-Mobile-v1.1.12-WORDPRESS.zip autoid-mobile && cd ..
       - name: Bundle AutoID branding
+        timeout-minutes: 4
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq imagemagick
           mkdir -p android-v0.1/app/src/main/res/drawable-nodpi
-          curl -fL --retry 3 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/Logo-AutoID.jpg" -o /tmp/autoid-logo.jpg
-          curl -fL --retry 3 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/2026/04/AUTOID-icon-1-png.webp" -o android-v0.1/app/src/main/res/drawable-nodpi/autoid_icon_v100.webp
+          curl -fL --connect-timeout 10 --max-time 45 --retry 2 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/Logo-AutoID.jpg" -o /tmp/autoid-logo.jpg
+          curl -fL --connect-timeout 10 --max-time 45 --retry 2 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/2026/04/AUTOID-icon-1-png.webp" -o android-v0.1/app/src/main/res/drawable-nodpi/autoid_icon_v100.webp
           convert /tmp/autoid-logo.jpg -alpha on -fuzz 8% -transparent white -trim +repage android-v0.1/app/src/main/res/drawable-nodpi/autoid_logo_transparent.png
       - name: Set up Java 17
         uses: actions/setup-java@v5
