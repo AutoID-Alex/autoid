@@ -31,14 +31,11 @@ jobs:
       - name: Upload generated inspection files
         uses: actions/upload-artifact@v4
         with:
-          name: AutoID-v1.0.21-generated-inspection
+          name: AutoID-v1.0.21-generated-inspection-full
           path: |
             android-v0.1/app/build.gradle.kts
             android-v0.1/build.gradle.kts
             android-v0.1/settings.gradle.kts
-            android-v0.1/app/src/main/java/ro/autoid/app/MainActivity.kt
-            android-v0.1/app/src/main/java/ro/autoid/app/V114CommerceUx.kt
-            android-v0.1/app/src/main/java/ro/autoid/app/data/AutoIdApi.kt
-            android-v0.1/app/src/main/java/ro/autoid/app/data/Models.kt
+            android-v0.1/app/src/main/java/ro/autoid/app/
             wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
           retention-days: 1
