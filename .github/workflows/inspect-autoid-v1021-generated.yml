@@ -1,0 +1,44 @@
+name: Inspect AutoID generated v1.0.21
+
+on:
+  push:
+    branches:
+      - mobile-v1.0.22-stripe-sandbox
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Prepare generated sources
+        run: |
+          bash ci/prepare_v1016_release.sh
+          python3 ci/apply_v1017_account_checkout.py
+          python3 ci/apply_v1018_shopify_checkout.py
+          python3 ci/apply_v1019_account_orders_performance.py
+          python3 ci/fix_v1019_kotlin_structure.py
+          python3 ci/apply_v1020_order_detail_rotation.py
+          python3 ci/apply_v1021_unified_order_status.py
+          python3 ci/patch_mobile_v118_account.py
+          python3 ci/patch_mobile_v119_delivery_tracking.py
+          python3 ci/patch_mobile_v1110_gls_awb.py
+      - name: Upload generated inspection files
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoID-v1.0.21-generated-inspection
+          path: |
+            android-v0.1/app/build.gradle.kts
+            android-v0.1/build.gradle.kts
+            android-v0.1/settings.gradle.kts
+            android-v0.1/app/src/main/java/ro/autoid/app/MainActivity.kt
+            android-v0.1/app/src/main/java/ro/autoid/app/V114CommerceUx.kt
+            android-v0.1/app/src/main/java/ro/autoid/app/data/AutoIdApi.kt
+            android-v0.1/app/src/main/java/ro/autoid/app/data/Models.kt
+            wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+          retention-days: 1
