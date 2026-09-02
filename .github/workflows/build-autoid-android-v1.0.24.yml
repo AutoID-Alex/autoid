@@ -1,0 +1,135 @@
+name: Build AutoID Android v1.0.24
+
+on:
+  push:
+    branches:
+      - mobile-v1.0.24-stripe-embedded-google-pay
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Prepare generated release sources
+        run: |
+          bash ci/prepare_v1016_release.sh
+          python3 ci/apply_v1017_account_checkout.py
+          python3 ci/apply_v1018_shopify_checkout.py
+          python3 ci/apply_v1019_account_orders_performance.py
+          python3 ci/fix_v1019_kotlin_structure.py
+          python3 ci/apply_v1020_order_detail_rotation.py
+          python3 ci/apply_v1021_unified_order_status.py
+          python3 ci/patch_mobile_v118_account.py
+          python3 ci/patch_mobile_v119_delivery_tracking.py
+          python3 ci/patch_mobile_v1110_gls_awb.py
+          python3 ci/apply_v1022_stripe_sandbox.py
+          python3 ci/apply_v1023_product_reviews_compat.py
+          python3 ci/fix_v1023_kotlin_calls.py
+          python3 ci/apply_v1024_stripe_inline_googlepay.py
+      - name: PHP lint v1.1.13
+        run: php -l wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+      - name: Verify v1.0.24 Stripe inline + Google Pay invariants
+        run: |
+          set -eu
+          UX=android-v0.1/app/src/main/java/ro/autoid/app/V114CommerceUx.kt
+          API=android-v0.1/app/src/main/java/ro/autoid/app/data/AutoIdApi.kt
+          MODELS=android-v0.1/app/src/main/java/ro/autoid/app/data/Models.kt
+          MANIFEST=android-v0.1/app/src/main/AndroidManifest.xml
+          GRADLE=android-v0.1/app/build.gradle.kts
+          PLUGIN=wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+          grep -q 'AutoID-Android/1.0.24' "$API"
+          grep -q 'versionCode = 12700' "$GRADLE"
+          grep -q 'versionName = "1.0.24"' "$GRADLE"
+          grep -q 'com.stripe:stripe-android:22.6.1' "$GRADLE"
+          grep -q 'CardInputWidget' "$UX"
+          grep -q 'postalCodeEnabled=false' "$UX"
+          grep -q 'rememberPaymentLauncher' "$UX"
+          grep -q 'rememberGooglePayLauncher' "$UX"
+          grep -q 'GooglePayEnvironment.Test' "$UX"
+          grep -q 'PaymentMethodCreateParams.create(card,billingDetails)' "$UX"
+          grep -q 'ConfirmPaymentIntentParams.createWithPaymentMethodCreateParams' "$UX"
+          grep -q 'stripeBilling=StripePaymentMethod.BillingDetails' "$UX"
+          grep -q 'Plătește cu Google Pay' "$UX"
+          grep -q 'Plătește cu cardul' "$UX"
+          ! grep -q 'rememberPaymentSheet' "$UX"
+          grep -q 'com.google.android.gms.wallet.api.enabled' "$MANIFEST"
+          grep -q 'stripePublishableKey:String' "$MODELS"
+          grep -q 'stripe_publishable_key' "$PLUGIN"
+          grep -q 'Version: 1.1.13' "$PLUGIN"
+          grep -q '/payments/stripe/confirm' "$PLUGIN"
+          grep -q "'status']??'')!=='succeeded'" "$PLUGIN"
+          grep -q 'autoid_stripe_amount_mismatch' "$PLUGIN"
+          grep -q 'autoid_stripe_currency_mismatch' "$PLUGIN"
+          grep -Fq "metadata['order_id']" "$PLUGIN"
+          if grep -R -E 'sk_(test|live)_[A-Za-z0-9]+' android-v0.1/app/src/main/java; then exit 1; fi
+          if grep -q 'live_secret_key' "$PLUGIN"; then exit 1; fi
+          keytool -list -v -keystore android-v0.1/autoid-dev.keystore -alias autoiddev -storepass autoiddev2026 | grep -q 'B1:C1:2A:66:11:22:0B:18:E0:42:E0:5D:77:57:9D:82:64:3F:CB:DB'
+      - name: Package AutoID Mobile v1.1.13
+        run: |
+          rm -rf wordpress/autoid-mobile
+          mv wordpress/autoid-mobile-commerce wordpress/autoid-mobile
+          mv wordpress/autoid-mobile/autoid-mobile-commerce.php wordpress/autoid-mobile/autoid-mobile.php
+          cd wordpress && zip -qr ../AutoID-Mobile-v1.1.13-WORDPRESS.zip autoid-mobile && cd ..
+      - name: Bundle AutoID branding
+        timeout-minutes: 4
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick
+          mkdir -p android-v0.1/app/src/main/res/drawable-nodpi
+          curl -fL --connect-timeout 10 --max-time 45 --retry 2 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/Logo-AutoID.jpg" -o /tmp/autoid-logo.jpg
+          curl -fL --connect-timeout 10 --max-time 45 --retry 2 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/2026/04/AUTOID-icon-1-png.webp" -o android-v0.1/app/src/main/res/drawable-nodpi/autoid_icon_v100.webp
+          convert /tmp/autoid-logo.jpg -alpha on -fuzz 8% -transparent white -trim +repage android-v0.1/app/src/main/res/drawable-nodpi/autoid_logo_transparent.png
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.4.1'
+      - name: Build debug APK
+        working-directory: android-v0.1
+        run: |
+          set -o pipefail
+          gradle --no-daemon --stacktrace assembleDebug 2>&1 | tee ../android-v1024-build.log
+      - name: Upload Android build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoID-v1.0.24-build-log
+          path: android-v1024-build.log
+          if-no-files-found: ignore
+          retention-days: 1
+      - name: Verify APK signing certificate
+        run: keytool -printcert -jarfile android-v0.1/app/build/outputs/apk/debug/app-debug.apk | grep -q 'B1:C1:2A:66:11:22:0B:18:E0:42:E0:5D:77:57:9D:82:64:3F:CB:DB'
+      - name: Prepare release files
+        run: |
+          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.24-debug.apk
+          sha256sum AutoID-Professional-Solutions-v1.0.24-debug.apk > AutoID-Professional-Solutions-v1.0.24-debug.sha256
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoID-Professional-Solutions-v1.0.24-APK
+          path: |
+            AutoID-Professional-Solutions-v1.0.24-debug.apk
+            AutoID-Professional-Solutions-v1.0.24-debug.sha256
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload WordPress plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoID-Mobile-v1.1.13-WORDPRESS
+          path: AutoID-Mobile-v1.1.13-WORDPRESS.zip
+          if-no-files-found: error
+          retention-days: 7
