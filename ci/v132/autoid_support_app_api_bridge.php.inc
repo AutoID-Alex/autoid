@@ -30,6 +30,11 @@
             'product_id'=>$product_id ?: absint($state['product_id']??0),
             'session_token'=>sanitize_text_field((string)($state['session_token']??'')),
             'history'=>$history,
+            'source'=>'APK',
+            'channel'=>'android',
+            'client'=>'AutoID Android',
+            'origin'=>'app',
+            'device_id'=>sanitize_text_field((string)$device_id),
         ];
 
         $had_http_auth=array_key_exists('HTTP_AUTHORIZATION',$_SERVER);
@@ -46,6 +51,8 @@
             $req->set_header('authorization','Bearer '.$token);
             $req->set_header('accept','application/json');
             $req->set_header('content-type','application/json');
+            $req->set_header('x-autoid-source','APK');
+            $req->set_header('x-autoid-channel','android');
             $req->set_body(wp_json_encode($payload));
             $resp=rest_do_request($req);
         } catch(Throwable $e) {
@@ -93,6 +100,8 @@
             'phase'=>sanitize_key((string)($data['phase']??'')),
             'model_id'=>absint($data['model_id']??0),
             'resolved'=>!empty($data['resolved']),
+            'source'=>'APK',
+            'channel'=>'android',
         ];
     }
 
