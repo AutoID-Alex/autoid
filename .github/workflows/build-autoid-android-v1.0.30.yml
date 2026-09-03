@@ -19,6 +19,7 @@ on:
       - 'ci/apply_v1034_persistent_admin_chat.py'
       - 'ci/v134/**'
       - 'ci/apply_v1035_rc7_uix_perf.py'
+      - 'ci/apply_v1035_rc7_runner.py'
       - 'ci/v135/**'
   workflow_dispatch:
 
@@ -63,7 +64,7 @@ jobs:
           python3 ci/apply_v1032_official_app_chat.py
           python3 ci/apply_v1033_rfq_header_no_favorites.py
           python3 ci/apply_v1034_persistent_admin_chat.py
-          python3 ci/apply_v1035_rc7_uix_perf.py
+          python3 ci/apply_v1035_rc7_runner.py
 
       - name: PHP lint and RC7 contract checks
         run: |
