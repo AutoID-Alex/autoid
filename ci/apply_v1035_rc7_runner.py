@@ -9,11 +9,11 @@ def patch_public_cache_and_product_perf():
     if 'java.util.concurrent.ConcurrentHashMap' not in a:
         a=a.replace('import java.nio.charset.StandardCharsets\n','import java.nio.charset.StandardCharsets\nimport java.util.concurrent.ConcurrentHashMap\n',1)
     if 'PublicCacheEntryV135' not in a:
-        mobile_line='        const val MOBILE = "$BASE/wp-json/autoid-app/v1"'
-        if mobile_line not in a: raise RuntimeError('MOBILE constant anchor missing')
+        match=re.search(r'^.*wp-json/autoid-app/v1.*$',a,re.M)
+        if not match: raise RuntimeError('mobile API URL anchor missing')
+        mobile_line=match.group(0)
         a=a.replace(mobile_line,mobile_line+'\n        private data class PublicCacheEntryV135(val value:String,val expiresAt:Long)\n        private val publicCacheV135=ConcurrentHashMap<String,PublicCacheEntryV135>()',1)
 
-    # Generated versions have kept the same get() helper body but may have gained methods around it.
     get_pattern=r'    private fun get\(url:String,token:String\?=null\)=request\("GET",url,null,token\)'
     get_new='''    private fun get(url:String,token:String?=null):String{
         if(token!=null)return request("GET",url,null,token)
@@ -25,17 +25,15 @@ def patch_public_cache_and_product_perf():
         publicCacheV135[url]=PublicCacheEntryV135(value,now+ttl);return value
     }'''
     a,n=re.subn(get_pattern,get_new,a,count=1)
-    if n!=1:
-        # Fallback if a previous migration expanded get() into a block: leave public cache class in place and do not risk private endpoint behavior.
-        print('RC7 cache note: generated get() helper is already expanded; skipping direct get() replacement')
+    if n!=1: print('RC7 cache note: generated get() helper is already expanded; skipping direct get() replacement')
     m.API.write_text(a)
 
     v=m.V100.read_text()
     if 'import kotlinx.coroutines.async' not in v:
         if 'import kotlinx.coroutines.Dispatchers\n' in v:
             v=v.replace('import kotlinx.coroutines.Dispatchers\n','import kotlinx.coroutines.Dispatchers\nimport kotlinx.coroutines.async\nimport kotlinx.coroutines.coroutineScope\n',1)
-        else:
-            v=v.replace('import kotlinx.coroutines.*\n','import kotlinx.coroutines.*\n',1)
+        elif 'import kotlinx.coroutines.*\n' not in v:
+            v=v.replace('package ro.autoid.app\n','package ro.autoid.app\n\nimport kotlinx.coroutines.async\nimport kotlinx.coroutines.coroutineScope\n',1)
 
     old='''    LaunchedEffect(seed.id,reviewRefresh){
         runCatching{withContext(Dispatchers.IO){api.product(seed.id)}}.onSuccess{p=it}
