@@ -38,6 +38,7 @@ jobs:
           python3 ci/apply_v1027_order_actions_awb_review.py
           python3 ci/fix_v1027_php_newlines.py
           python3 ci/apply_v1028_fcm_privacy.py
+          python3 ci/fix_v1028_compile.py
       - name: PHP lint v1.1.17
         run: php -l wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
       - name: Verify v1.0.28 FCM privacy invariants
@@ -47,6 +48,7 @@ jobs:
           MODELS=android-v0.1/app/src/main/java/ro/autoid/app/data/Models.kt
           MAIN=android-v0.1/app/src/main/java/ro/autoid/app/MainActivity.kt
           PUSH=android-v0.1/app/src/main/java/ro/autoid/app/PrivacyPushV128.kt
+          WORKER=android-v0.1/app/src/main/java/ro/autoid/app/OrderNotificationV126.kt
           UX=android-v0.1/app/src/main/java/ro/autoid/app/V114CommerceUx.kt
           MANIFEST=android-v0.1/app/src/main/AndroidManifest.xml
           GRADLE=android-v0.1/app/build.gradle.kts
@@ -69,6 +71,8 @@ jobs:
           grep -q 'Analytics' "$UX"
           grep -q 'Marketing & promoții' "$UX"
           grep -q 'ic_autoid_notification_v127' "$PUSH"
+          grep -q 'const val CHANNEL' "$WORKER"
+          ! grep -q 'private const val CHANNEL' "$WORKER"
           grep -q 'Version: 1.1.17' "$PLUGIN"
           grep -q "'/push/config'" "$PLUGIN"
           grep -q "'/push/register'" "$PLUGIN"
