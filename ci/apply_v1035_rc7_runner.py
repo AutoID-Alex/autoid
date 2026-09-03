@@ -1,7 +1,23 @@
 #!/usr/bin/env python3
 """Robust entrypoint for RC7 over the fully-generated RC6 source tree."""
 import re
+from pathlib import Path
+import base64
+import zlib
 import apply_v1035_rc7_uix_perf as m
+
+
+def print_original_privacy_contract():
+    payload=''.join(Path(f'ci/v128_fcm_privacy_payload.part{i}').read_text().strip() for i in range(1,5))
+    src=zlib.decompress(base64.b64decode(payload)).decode('utf-8','replace')
+    lines=src.splitlines()
+    keys=('privacy','consim','consent','notification','Confiden')
+    print('=== RC6 ORIGINAL PRIVACY CONTRACT ===')
+    for i,line in enumerate(lines):
+        if any(k.lower() in line.lower() for k in keys):
+            lo=max(0,i-2);hi=min(len(lines),i+4)
+            for j in range(lo,hi): print(f'PRIVACY_SRC {j+1}: {lines[j]}')
+    print('=== END RC6 ORIGINAL PRIVACY CONTRACT ===')
 
 
 def patch_public_cache_and_product_perf():
@@ -77,5 +93,6 @@ def patch_public_cache_and_product_perf():
         v=v.replace('val groups=family?.groups.orEmpty().filter{it.count>0}','val groups=family?.groups.orEmpty().filter{it.count>0}.sortedBy(::relatedGroupPriorityV135)',1)
     m.V100.write_text(v)
 
+print_original_privacy_contract()
 m.patch_public_cache_and_product_perf=patch_public_cache_and_product_perf
 m.main()
