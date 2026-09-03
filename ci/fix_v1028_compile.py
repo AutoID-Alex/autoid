@@ -1,10 +1,10 @@
 from pathlib import Path
+import re
 
 p=Path('android-v0.1/app/src/main/java/ro/autoid/app/OrderNotificationV126.kt')
 s=p.read_text()
 old=s
-s=s.replace('private const val CHANNEL="autoid_orders"','const val CHANNEL="autoid_orders"',1)
-s=s.replace('private const val CHANNEL = "autoid_orders"','const val CHANNEL = "autoid_orders"',1)
+s=re.sub(r'private\s+(const\s+)?val\s+CHANNEL\b',lambda m:(m.group(1) or '')+'val CHANNEL',s,count=1)
 if s==old:
     raise SystemExit('v1.0.28 notification CHANNEL visibility anchor not found')
 p.write_text(s)
