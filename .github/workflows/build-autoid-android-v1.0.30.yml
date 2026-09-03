@@ -1,4 +1,4 @@
-name: Build AutoID Android v1.0.30 RC3 Support v2 Chat
+name: Build AutoID Android v1.0.30 RC3 Support v2 Chat + Installable WP
 
 on:
   push:
@@ -96,11 +96,26 @@ jobs:
 
       - name: Package AutoID Mobile v1.1.24
         run: |
-          rm -rf wordpress/autoid-mobile
+          set -eu
+          rm -rf wordpress/autoid-mobile release-wordpress
           cp -R wordpress/autoid-mobile-commerce wordpress/autoid-mobile
           mv wordpress/autoid-mobile/autoid-mobile-commerce.php wordpress/autoid-mobile/autoid-mobile.php
+          mkdir -p release-wordpress
+          cp -R wordpress/autoid-mobile release-wordpress/autoid-mobile
+          test -f release-wordpress/autoid-mobile/autoid-mobile.php
+          grep -q 'Plugin Name: AutoID Mobile' release-wordpress/autoid-mobile/autoid-mobile.php
+          grep -q 'Version: 1.1.24' release-wordpress/autoid-mobile/autoid-mobile.php
+          php -l release-wordpress/autoid-mobile/autoid-mobile.php
           cd wordpress
           zip -qr ../AutoID-Mobile-v1.1.24-WORDPRESS.zip autoid-mobile
+
+      - name: Verify direct-install WordPress artifact layout
+        run: |
+          set -eu
+          cd release-wordpress
+          zip -qr /tmp/AutoID-Mobile-v1.1.24-direct-install-test.zip autoid-mobile
+          unzip -l /tmp/AutoID-Mobile-v1.1.24-direct-install-test.zip | grep -q 'autoid-mobile/autoid-mobile.php'
+          unzip -p /tmp/AutoID-Mobile-v1.1.24-direct-install-test.zip autoid-mobile/autoid-mobile.php | grep -q 'Plugin Name: AutoID Mobile'
 
       - name: Bundle AutoID branding
         timeout-minutes: 4
@@ -157,11 +172,11 @@ jobs:
             AutoID-Professional-Solutions-v1.0.30-RC3-support-v2-debug.apk
             AutoID-Professional-Solutions-v1.0.30-RC3-support-v2-debug.sha256
           retention-days: 14
-      - name: Upload WordPress plugin
+
+      - name: Upload WordPress plugin direct-install artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AutoID-Mobile-v1.1.24-WORDPRESS
-          path: |
-            AutoID-Mobile-v1.1.24-WORDPRESS.zip
-            AutoID-Mobile-v1.1.24-WORDPRESS.sha256
+          name: AutoID-Mobile-v1.1.24-WORDPRESS-DIRECT-INSTALL
+          path: release-wordpress
+          if-no-files-found: error
           retention-days: 14
