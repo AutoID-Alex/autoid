@@ -1,11 +1,14 @@
-name: Build AutoID Android v1.0.30 RC1 RFQ
+name: Build AutoID Android v1.0.30 RC2 Chat Fix
 
 on:
   push:
     branches: [mobile-v1.0.30-rc1-rfq]
     paths:
       - '.github/workflows/build-autoid-android-v1.0.30.yml'
+      - 'ci/apply_v1029_native_chat.py'
+      - 'ci/v129/**'
       - 'ci/apply_v1030_rfq_account.py'
+      - 'ci/apply_v1030_chatfix.py'
       - 'ci/v130/**'
   workflow_dispatch:
 
@@ -45,13 +48,14 @@ jobs:
           python3 ci/fix_v1028_compile.py
           python3 ci/apply_v1029_native_chat.py
           python3 ci/apply_v1030_rfq_account.py
+          python3 ci/apply_v1030_chatfix.py
 
-      - name: PHP lint and RFQ contract checks
+      - name: PHP lint and RFQ/chat contract checks
         run: |
           set -eu
           PLUGIN=wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
           php -l "$PLUGIN"
-          grep -q 'Version: 1.1.22' "$PLUGIN"
+          grep -q 'Version: 1.1.23' "$PLUGIN"
           grep -q "'/rfqs'" "$PLUGIN"
           grep -q "'/me/rfqs'" "$PLUGIN"
           grep -q 'rfq_owner_v130' "$PLUGIN"
@@ -61,8 +65,13 @@ jobs:
           grep -q 'autoid://account/rfq/' "$PLUGIN"
           grep -q 'RO07INGB0001008225758911' "$PLUGIN"
           grep -q 'RO27CITI0000000706842004' "$PLUGIN"
+          grep -q 'support_center_compat_v130' "$PLUGIN"
+          grep -q 'support_center_callback_owned_v130' "$PLUGIN"
+          grep -q 'support_center_rest_scan_v130' "$PLUGIN"
+          grep -q 'support_center_ajax_scan_v130' "$PLUGIN"
+          grep -q 'admin-ajax.php' "$PLUGIN"
 
-      - name: Verify Android RFQ, chat hotfix and security
+      - name: Verify Android RFQ, chat session and security
         run: |
           set -eu
           GRADLE=android-v0.1/app/build.gradle.kts
@@ -81,13 +90,13 @@ jobs:
           if grep -R -E 'AUTOID_SUPPORT_APP_TOKEN|OPENAI_API_KEY|sk-[A-Za-z0-9_-]{20,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' android-v0.1/app/src/main; then exit 1; fi
           keytool -list -v -keystore android-v0.1/autoid-dev.keystore -alias autoiddev -storepass autoiddev2026 | grep -q 'B1:C1:2A:66:11:22:0B:18:E0:42:E0:5D:77:57:9D:82:64:3F:CB:DB'
 
-      - name: Package AutoID Mobile v1.1.22
+      - name: Package AutoID Mobile v1.1.23
         run: |
           rm -rf wordpress/autoid-mobile
           cp -R wordpress/autoid-mobile-commerce wordpress/autoid-mobile
           mv wordpress/autoid-mobile/autoid-mobile-commerce.php wordpress/autoid-mobile/autoid-mobile.php
           cd wordpress
-          zip -qr ../AutoID-Mobile-v1.1.22-WORDPRESS.zip autoid-mobile
+          zip -qr ../AutoID-Mobile-v1.1.23-WORDPRESS.zip autoid-mobile
 
       - name: Bundle AutoID branding
         timeout-minutes: 4
@@ -119,7 +128,7 @@ jobs:
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
-        with: {name: AutoID-v1.0.30-RC1-build-log, path: android-v1030-build.log, if-no-files-found: ignore, retention-days: 3}
+        with: {name: AutoID-v1.0.30-RC2-chatfix-build-log, path: android-v1030-build.log, if-no-files-found: ignore, retention-days: 3}
 
       - name: Verify APK signing and secret exclusion
         run: |
@@ -132,23 +141,23 @@ jobs:
 
       - name: Prepare release files
         run: |
-          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.30-RC1-debug.apk
-          sha256sum AutoID-Professional-Solutions-v1.0.30-RC1-debug.apk > AutoID-Professional-Solutions-v1.0.30-RC1-debug.sha256
-          sha256sum AutoID-Mobile-v1.1.22-WORDPRESS.zip > AutoID-Mobile-v1.1.22-WORDPRESS.sha256
+          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.30-RC2-chatfix-debug.apk
+          sha256sum AutoID-Professional-Solutions-v1.0.30-RC2-chatfix-debug.apk > AutoID-Professional-Solutions-v1.0.30-RC2-chatfix-debug.sha256
+          sha256sum AutoID-Mobile-v1.1.23-WORDPRESS.zip > AutoID-Mobile-v1.1.23-WORDPRESS.sha256
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: AutoID-Professional-Solutions-v1.0.30-RC1-APK
+          name: AutoID-Professional-Solutions-v1.0.30-RC2-ChatFix-APK
           path: |
-            AutoID-Professional-Solutions-v1.0.30-RC1-debug.apk
-            AutoID-Professional-Solutions-v1.0.30-RC1-debug.sha256
+            AutoID-Professional-Solutions-v1.0.30-RC2-chatfix-debug.apk
+            AutoID-Professional-Solutions-v1.0.30-RC2-chatfix-debug.sha256
           retention-days: 14
       - name: Upload WordPress plugin
         uses: actions/upload-artifact@v4
         with:
-          name: AutoID-Mobile-v1.1.22-WORDPRESS
+          name: AutoID-Mobile-v1.1.23-WORDPRESS
           path: |
-            AutoID-Mobile-v1.1.22-WORDPRESS.zip
-            AutoID-Mobile-v1.1.22-WORDPRESS.sha256
+            AutoID-Mobile-v1.1.23-WORDPRESS.zip
+            AutoID-Mobile-v1.1.23-WORDPRESS.sha256
           retention-days: 14
