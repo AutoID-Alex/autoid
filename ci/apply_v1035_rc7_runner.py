@@ -21,7 +21,7 @@ def patch_public_cache_and_product_perf():
         if(!cacheable)return request("GET",url,null,null)
         val now=System.currentTimeMillis();publicCacheV135[url]?.takeIf{it.expiresAt>now}?.let{return it.value}
         val value=request("GET",url,null,null)
-        val ttl=when{url.contains("/categories")->5*60_000L;url.contains("/family")->3*60_000L;Regex(".*/products/\\\\d+(\\\\?.*)?$").matches(url)->2*60_000L;else->45_000L}
+        val ttl=when{url.contains("/categories")->5*60_000L;url.contains("/family")->3*60_000L;Regex(""".*/products/\\d+(\\?.*)?$""").matches(url)->2*60_000L;else->45_000L}
         publicCacheV135[url]=PublicCacheEntryV135(value,now+ttl);return value
     }'''
     a,n=re.subn(get_pattern,get_new,a,count=1)
