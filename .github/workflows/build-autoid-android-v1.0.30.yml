@@ -1,4 +1,4 @@
-name: Build AutoID Android v1.0.30 RC4 Official Support App API
+name: Build AutoID Android v1.0.30 RC5 RFQ Header No Favorites
 
 on:
   push:
@@ -14,6 +14,8 @@ on:
       - 'ci/v131/**'
       - 'ci/apply_v1032_official_app_chat.py'
       - 'ci/v132/**'
+      - 'ci/apply_v1033_rfq_header_no_favorites.py'
+      - 'ci/v133/**'
   workflow_dispatch:
 
 permissions:
@@ -55,6 +57,7 @@ jobs:
           python3 ci/apply_v1030_chatfix.py
           python3 ci/apply_v1031_support_v2_chat.py
           python3 ci/apply_v1032_official_app_chat.py
+          python3 ci/apply_v1033_rfq_header_no_favorites.py
 
       - name: PHP lint and RFQ/chat contract checks
         run: |
@@ -77,20 +80,29 @@ jobs:
           grep -q 'v132-official-app-api' "$PLUGIN"
           grep -q 'APP_TOKEN_MISSING_OR_SHORT' "$PLUGIN"
 
-      - name: Verify Android RFQ, chat session and security
+      - name: Verify Android RFQ header, chat session and security
         run: |
           set -eu
           GRADLE=android-v0.1/app/build.gradle.kts
           API=android-v0.1/app/src/main/java/ro/autoid/app/data/AutoIdApi.kt
           RFQ=android-v0.1/app/src/main/java/ro/autoid/app/RfqV130.kt
+          RFQ_HEADER=android-v0.1/app/src/main/java/ro/autoid/app/RfqHeaderV133.kt
+          V100=android-v0.1/app/src/main/java/ro/autoid/app/V100Screens.kt
+          V114=android-v0.1/app/src/main/java/ro/autoid/app/V114CommerceUx.kt
           MANIFEST=android-v0.1/app/src/main/AndroidManifest.xml
-          grep -q 'versionCode = 13300' "$GRADLE"
+          grep -q 'versionCode = 13301' "$GRADLE"
           grep -q 'versionName = "1.0.30"' "$GRADLE"
           grep -q 'AutoID-Android/1.0.30' "$API"
           grep -q 'ai/token?device_id=' "$API"
           grep -q 'RfqStoreV130' "$RFQ"
           grep -q 'Cerere înregistrată' "$RFQ"
           grep -q 'RfqAccountScreenV130' "$RFQ"
+          grep -q 'RfqHeaderActionV133' "$RFQ_HEADER"
+          grep -q 'Icons.Default.RequestQuote' "$RFQ_HEADER"
+          grep -q 'Cerere de ofertă' "$V100"
+          grep -q 'RfqHeaderActionV133' "$V100"
+          grep -q 'RfqHeaderActionV133' "$V114"
+          if grep -E 'Icons\.Default\.Favorite(Border)?' "$V100" "$V114"; then exit 1; fi
           grep -q 'FileProvider' "$MANIFEST"
           grep -q 'android:scheme="autoid"' "$MANIFEST"
           if grep -R -E 'AUTOID_SUPPORT_APP_TOKEN|OPENAI_API_KEY|sk-[A-Za-z0-9_-]{20,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' android-v0.1/app/src/main; then exit 1; fi
@@ -149,7 +161,7 @@ jobs:
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
-        with: {name: AutoID-v1.0.30-RC4-official-app-api-build-log, path: android-v1030-build.log, if-no-files-found: ignore, retention-days: 3}
+        with: {name: AutoID-v1.0.30-RC5-rfq-header-build-log, path: android-v1030-build.log, if-no-files-found: ignore, retention-days: 3}
 
       - name: Verify APK signing and secret exclusion
         run: |
@@ -162,16 +174,16 @@ jobs:
 
       - name: Prepare release files
         run: |
-          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.30-RC4-official-app-api-debug.apk
-          sha256sum AutoID-Professional-Solutions-v1.0.30-RC4-official-app-api-debug.apk > AutoID-Professional-Solutions-v1.0.30-RC4-official-app-api-debug.sha256
+          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.30-RC5-rfq-header-debug.apk
+          sha256sum AutoID-Professional-Solutions-v1.0.30-RC5-rfq-header-debug.apk > AutoID-Professional-Solutions-v1.0.30-RC5-rfq-header-debug.sha256
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: AutoID-Professional-Solutions-v1.0.30-RC4-Official-App-API-APK
+          name: AutoID-Professional-Solutions-v1.0.30-RC5-RFQ-Header-APK
           path: |
-            AutoID-Professional-Solutions-v1.0.30-RC4-official-app-api-debug.apk
-            AutoID-Professional-Solutions-v1.0.30-RC4-official-app-api-debug.sha256
+            AutoID-Professional-Solutions-v1.0.30-RC5-rfq-header-debug.apk
+            AutoID-Professional-Solutions-v1.0.30-RC5-rfq-header-debug.sha256
           retention-days: 14
 
       - name: Upload WordPress plugin direct-install artifact
