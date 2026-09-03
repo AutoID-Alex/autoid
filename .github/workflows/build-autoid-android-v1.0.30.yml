@@ -1,4 +1,4 @@
-name: Build AutoID Android v1.0.30 RC6 Persistent Chat Admin Takeover
+name: Build AutoID Android v1.0.30 RC7 Account RFQ Performance Chat
 
 on:
   push:
@@ -18,6 +18,8 @@ on:
       - 'ci/v133/**'
       - 'ci/apply_v1034_persistent_admin_chat.py'
       - 'ci/v134/**'
+      - 'ci/apply_v1035_rc7_uix_perf.py'
+      - 'ci/v135/**'
   workflow_dispatch:
 
 permissions:
@@ -61,72 +63,63 @@ jobs:
           python3 ci/apply_v1032_official_app_chat.py
           python3 ci/apply_v1033_rfq_header_no_favorites.py
           python3 ci/apply_v1034_persistent_admin_chat.py
+          python3 ci/apply_v1035_rc7_uix_perf.py
 
-      - name: PHP lint and RFQ/chat contract checks
+      - name: PHP lint and RC7 contract checks
         run: |
           set -eu
           PLUGIN=wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
           php -l "$PLUGIN"
-          grep -q 'Version: 1.1.26' "$PLUGIN"
+          grep -q 'Version: 1.1.27' "$PLUGIN"
           grep -q "'/rfqs'" "$PLUGIN"
           grep -q "'/me/rfqs'" "$PLUGIN"
           grep -q 'rfq_owner_v130' "$PLUGIN"
-          grep -q "'status'=>409" "$PLUGIN"
-          grep -q '_autoid_rfq_offer_pdf_id' "$PLUGIN"
-          grep -q 'Content-Type: application/pdf' "$PLUGIN"
-          grep -q 'autoid://account/rfq/' "$PLUGIN"
-          grep -q 'RO07INGB0001008225758911' "$PLUGIN"
-          grep -q 'RO27CITI0000000706842004' "$PLUGIN"
-          grep -q 'support_center_app_chat_v132' "$PLUGIN"
+          grep -q 'autoid_rfq_consent_required' "$PLUGIN"
+          grep -q '_autoid_rfq_create_account' "$PLUGIN"
+          grep -q "'/ai/history'" "$PLUGIN"
+          grep -q "'/ai/reset'" "$PLUGIN"
+          grep -q 'ai_reset_v135' "$PLUGIN"
+          grep -q "'source'=>'APK'" "$PLUGIN"
+          grep -q "'channel'=>'android'" "$PLUGIN"
           grep -q '/autoid-support/v2/app/chat' "$PLUGIN"
           grep -q 'AUTOID_SUPPORT_APP_TOKEN' "$PLUGIN"
-          grep -q 'v132-official-app-api' "$PLUGIN"
-          grep -q 'APP_TOKEN_MISSING_OR_SHORT' "$PLUGIN"
-          grep -q "'/ai/history'" "$PLUGIN"
-          grep -q 'autoid_chat_thread' "$PLUGIN"
-          grep -q 'chat_admin_menu_v134' "$PLUGIN"
-          grep -q 'chat_admin_action_v134' "$PLUGIN"
-          grep -q "'human_mode'=>true" "$PLUGIN"
-          grep -q 'Preia conversația' "$PLUGIN"
-          grep -q 'Predă AI-ului' "$PLUGIN"
+          grep -q '_autoid_rfq_offer_pdf_id' "$PLUGIN"
+          grep -q 'Content-Type: application/pdf' "$PLUGIN"
+          grep -q 'RO07INGB0001008225758911' "$PLUGIN"
+          grep -q 'RO27CITI0000000706842004' "$PLUGIN"
 
-      - name: Verify Android RFQ header, persistent chat and security
+      - name: Verify Android RC7 UX performance and security
         run: |
           set -eu
           GRADLE=android-v0.1/app/build.gradle.kts
           API=android-v0.1/app/src/main/java/ro/autoid/app/data/AutoIdApi.kt
           RFQ=android-v0.1/app/src/main/java/ro/autoid/app/RfqV130.kt
-          RFQ_HEADER=android-v0.1/app/src/main/java/ro/autoid/app/RfqHeaderV133.kt
           CHAT=android-v0.1/app/src/main/java/ro/autoid/app/V129NativeChat.kt
+          ACCOUNT=android-v0.1/app/src/main/java/ro/autoid/app/V135AccountUx.kt
           V100=android-v0.1/app/src/main/java/ro/autoid/app/V100Screens.kt
-          V114=android-v0.1/app/src/main/java/ro/autoid/app/V114CommerceUx.kt
           MANIFEST=android-v0.1/app/src/main/AndroidManifest.xml
-          grep -q 'versionCode = 13302' "$GRADLE"
+          grep -q 'versionCode = 13303' "$GRADLE"
           grep -q 'versionName = "1.0.30"' "$GRADLE"
-          grep -q 'AutoID-Android/1.0.30' "$API"
-          grep -q 'ai/token?device_id=' "$API"
-          grep -q 'ai/history?device_id=' "$API"
-          grep -q 'aiHistoryV134' "$API"
-          grep -q 'aiChatV134' "$API"
-          grep -q 'PersistentAiChatScreenV134' "$CHAT"
-          grep -q 'delay(3000)' "$CHAT"
-          grep -q 'Consultant AutoID conectat' "$CHAT"
-          grep -q 'PersistentAiChatScreenV134(api, null)' "$V100"
-          grep -q 'RfqStoreV130' "$RFQ"
-          grep -q 'Cerere înregistrată' "$RFQ"
-          grep -q 'RfqAccountScreenV130' "$RFQ"
-          grep -q 'RfqHeaderActionV133' "$RFQ_HEADER"
-          grep -q 'Icons.Default.RequestQuote' "$RFQ_HEADER"
-          grep -q 'Cerere de ofertă' "$V100"
+          grep -q 'PublicCacheEntryV135' "$API"
+          grep -q 'aiResetV135' "$API"
+          grep -q 'PersistentAiChatScreenV135' "$CHAT"
+          grep -q 'Pornește o conversație nouă' "$CHAT"
+          grep -q 'AccountV135' "$ACCOUNT"
+          grep -q 'Înapoi la cont' "$ACCOUNT"
+          grep -q 'Caută după Order ID' "$ACCOUNT"
+          if grep -q 'background(A135Soft).statusBarsPadding' "$ACCOUNT"; then exit 1; fi
+          grep -q 'Caută după RFQ / ID' "$RFQ"
+          grep -q 'Creează cont AutoID' "$RFQ"
+          grep -q 'Politica de confidențialitate' "$RFQ"
+          grep -q 'relatedGroupPriorityV135' "$V100"
+          grep -q 'coroutineScope' "$V100"
           grep -q 'RfqHeaderActionV133' "$V100"
-          grep -q 'RfqHeaderActionV133' "$V114"
-          if grep -E 'Icons\.Default\.Favorite(Border)?' "$V100" "$V114"; then exit 1; fi
           grep -q 'FileProvider' "$MANIFEST"
           grep -q 'android:scheme="autoid"' "$MANIFEST"
           if grep -R -E 'AUTOID_SUPPORT_APP_TOKEN|OPENAI_API_KEY|sk-[A-Za-z0-9_-]{20,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' android-v0.1/app/src/main; then exit 1; fi
           keytool -list -v -keystore android-v0.1/autoid-dev.keystore -alias autoiddev -storepass autoiddev2026 | grep -q 'B1:C1:2A:66:11:22:0B:18:E0:42:E0:5D:77:57:9D:82:64:3F:CB:DB'
 
-      - name: Package AutoID Mobile v1.1.26
+      - name: Package AutoID Mobile v1.1.27
         run: |
           set -eu
           rm -rf wordpress/autoid-mobile release-wordpress
@@ -136,18 +129,18 @@ jobs:
           cp -R wordpress/autoid-mobile release-wordpress/autoid-mobile
           test -f release-wordpress/autoid-mobile/autoid-mobile.php
           grep -q 'Plugin Name: AutoID Mobile' release-wordpress/autoid-mobile/autoid-mobile.php
-          grep -q 'Version: 1.1.26' release-wordpress/autoid-mobile/autoid-mobile.php
+          grep -q 'Version: 1.1.27' release-wordpress/autoid-mobile/autoid-mobile.php
           php -l release-wordpress/autoid-mobile/autoid-mobile.php
           cd wordpress
-          zip -qr ../AutoID-Mobile-v1.1.26-WORDPRESS.zip autoid-mobile
+          zip -qr ../AutoID-Mobile-v1.1.27-WORDPRESS.zip autoid-mobile
 
       - name: Verify direct-install WordPress artifact layout
         run: |
           set -eu
           cd release-wordpress
-          zip -qr /tmp/AutoID-Mobile-v1.1.26-direct-install-test.zip autoid-mobile
-          unzip -l /tmp/AutoID-Mobile-v1.1.26-direct-install-test.zip | grep -q 'autoid-mobile/autoid-mobile.php'
-          unzip -p /tmp/AutoID-Mobile-v1.1.26-direct-install-test.zip autoid-mobile/autoid-mobile.php | grep -q 'Plugin Name: AutoID Mobile'
+          zip -qr /tmp/AutoID-Mobile-v1.1.27-direct-install-test.zip autoid-mobile
+          unzip -l /tmp/AutoID-Mobile-v1.1.27-direct-install-test.zip | grep -q 'autoid-mobile/autoid-mobile.php'
+          unzip -p /tmp/AutoID-Mobile-v1.1.27-direct-install-test.zip autoid-mobile/autoid-mobile.php | grep -q 'Plugin Name: AutoID Mobile'
 
       - name: Bundle AutoID branding
         timeout-minutes: 4
@@ -179,7 +172,7 @@ jobs:
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
-        with: {name: AutoID-v1.0.30-RC6-persistent-chat-build-log, path: android-v1030-build.log, if-no-files-found: ignore, retention-days: 3}
+        with: {name: AutoID-v1.0.30-RC7-uix-perf-build-log, path: android-v1030-build.log, if-no-files-found: ignore, retention-days: 3}
 
       - name: Verify APK signing and secret exclusion
         run: |
@@ -192,22 +185,22 @@ jobs:
 
       - name: Prepare release files
         run: |
-          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.30-RC6-persistent-chat-debug.apk
-          sha256sum AutoID-Professional-Solutions-v1.0.30-RC6-persistent-chat-debug.apk > AutoID-Professional-Solutions-v1.0.30-RC6-persistent-chat-debug.sha256
+          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.30-RC7-uix-perf-debug.apk
+          sha256sum AutoID-Professional-Solutions-v1.0.30-RC7-uix-perf-debug.apk > AutoID-Professional-Solutions-v1.0.30-RC7-uix-perf-debug.sha256
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: AutoID-Professional-Solutions-v1.0.30-RC6-Persistent-Chat-APK
+          name: AutoID-Professional-Solutions-v1.0.30-RC7-UX-Performance-APK
           path: |
-            AutoID-Professional-Solutions-v1.0.30-RC6-persistent-chat-debug.apk
-            AutoID-Professional-Solutions-v1.0.30-RC6-persistent-chat-debug.sha256
+            AutoID-Professional-Solutions-v1.0.30-RC7-uix-perf-debug.apk
+            AutoID-Professional-Solutions-v1.0.30-RC7-uix-perf-debug.sha256
           retention-days: 14
 
       - name: Upload WordPress plugin direct-install artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AutoID-Mobile-v1.1.26-WORDPRESS-DIRECT-INSTALL
+          name: AutoID-Mobile-v1.1.27-WORDPRESS-DIRECT-INSTALL
           path: release-wordpress
           if-no-files-found: error
           retention-days: 14
