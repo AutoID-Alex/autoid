@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / 'android-v0.1/app/src/main/java/ro/autoid/app'
 API = APP / 'data/AutoIdApi.kt'
 V100 = APP / 'V100Screens.kt'
+MAIN = APP / 'MainActivity.kt'
 CHAT = APP / 'V129NativeChat.kt'
 PLUGIN = ROOT / 'wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php'
 GRADLE = ROOT / 'android-v0.1/app/build.gradle.kts'
@@ -138,11 +139,25 @@ def patch_api() -> None:
 
 def patch_android() -> None:
     shutil.copyfile(ASSET, CHAT)
+
     text = V100.read_text()
     text = text.replace('NativeAiChatScreen(api, null)', 'PersistentAiChatScreenV134(api, null)')
     if 'PersistentAiChatScreenV134(api, null)' not in text:
-        raise RuntimeError('Persistent chat screen call missing')
+        raise RuntimeError('Persistent chat screen call missing in V100Screens.kt')
+    if 'NativeAiChatScreen(' in text:
+        raise RuntimeError('Legacy NativeAiChatScreen call remains in V100Screens.kt')
     V100.write_text(text)
+
+    main = MAIN.read_text()
+    legacy_calls = main.count('NativeAiChatScreen(')
+    if legacy_calls < 1:
+        raise RuntimeError('Expected legacy NativeAiChatScreen call in MainActivity.kt')
+    main = main.replace('NativeAiChatScreen(', 'PersistentAiChatScreenV134(')
+    if 'NativeAiChatScreen(' in main:
+        raise RuntimeError('Legacy NativeAiChatScreen call remains in MainActivity.kt')
+    if 'PersistentAiChatScreenV134(' not in main:
+        raise RuntimeError('Persistent chat screen call missing in MainActivity.kt')
+    MAIN.write_text(main)
 
     gradle = GRADLE.read_text()
     gradle = once(gradle, 'versionCode = 13301', 'versionCode = 13302', 'RC6 version code')
