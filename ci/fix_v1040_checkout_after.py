@@ -36,20 +36,25 @@ replacements={
 for old,new in replacements.items():
     s=s.replace(old,new)
 
-old='val shippingSave=if(sameBilling)billingSave.copy(company="") else AccountAddress(firstName=sFirst,lastName=sLast,address1=sAddress1,address2=sAddress2,city=sCity,state=sState,postcode=sPostcode,country=sCountry)'
+# Shipping always remains the shipping address. sameBilling affects the billing
+# address derivation, not which address is stored as shipping in WooCommerce.
+semantic='val shippingSave=if(sameBilling)billingSave.copy(company="") else AccountAddress(firstName=sFirst,lastName=sLast,address1=sAddress1,address2=sAddress2,city=sCity,state=sState,postcode=sPostcode,country=sCountry)'
+mapped='val shippingSave=if(sameBilling)billingSave.copy(company="") else AccountAddress(firstName=sf,lastName=sl,address1=sa1,address2=sa2,city=scity,state=sstate,postcode=spost,country=scountry)'
 new='val shippingSave=AccountAddress(firstName=sf,lastName=sl,address1=sa1,address2=sa2,city=scity,state=sstate,postcode=spost,country=scountry)'
-if old in s:
-    s=s.replace(old,new,1)
-else:
-    # The semantic field replacements may have already transformed part of it.
-    alt='val shippingSave=if(sameBilling)billingSave.copy(company="") else AccountAddress(firstName=sFirst,lastName=sLast,address1=sAddress1,address2=sAddress2,city=sCity,state=sState,postcode=sPostcode,country=sCountry)'
-    if alt in s:s=s.replace(alt,new,1)
+if semantic in s:s=s.replace(semantic,new,1)
+elif mapped in s:s=s.replace(mapped,new,1)
 
-for bad in ['bFirst','bLast','bAddress1','bAddress2','bCity','bState','bPostcode','bCountry','sFirst','sLast','sAddress1','sAddress2','sCity','sState','sPostcode','sCountry','C114Orange']:
-    if bad in s:
+# Validate only the generated CheckoutV114 block; other legacy components may
+# legitimately use similarly named constants.
+i=s.find('fun CheckoutV114')
+if i<0:raise SystemExit('RC8 checkout function missing after patch')
+j=s.find('\n@Composable',i+10)
+checkout=s[i:j if j>0 else len(s)]
+for bad in ['bFirst','bLast','bAddress1','bAddress2','bCity','bState','bPostcode','bCountry','sFirst','sLast','sAddress1','sAddress2','sCity','sState','sPostcode','sCountry']:
+    if bad in checkout:
         raise SystemExit('RC8 checkout semantic placeholder remains: '+bad)
 for required in ['api.saveAccountAddresses','firstName=billingFirst','firstName=sf','bf=saved.billing.firstName','sf=saved.shipping.firstName','Salvează adresele']:
-    if required not in s:
+    if required not in checkout:
         raise SystemExit('RC8 checkout final contract missing: '+required)
 
 p.write_text(s)
