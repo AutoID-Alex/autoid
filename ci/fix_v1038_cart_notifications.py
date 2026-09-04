@@ -16,13 +16,29 @@ TARGET=APP/'NotificationInboxV138.kt'
 
 shutil.copyfile(ASSET,TARGET)
 
+def function_block(text,needle):
+    i=text.find(needle)
+    if i<0: raise SystemExit(needle+' function missing')
+    brace=text.find('{',i)
+    if brace<0: raise SystemExit(needle+' opening brace missing')
+    depth=0
+    for j in range(brace,len(text)):
+        if text[j]=='{': depth+=1
+        elif text[j]=='}':
+            depth-=1
+            if depth==0:return i,j+1,text[i:j+1]
+    raise SystemExit(needle+' closing brace missing')
+
 # 1. Fix the actually routed cart implementation. RC7.2 only fixed CartV100,
 # while AutoIdAppV100 routes V100Tab.Cart to CartV114.
 v114=V114.read_text()
+ci,cj,cart=function_block(v114,'fun CartV114')
 cart_old='Column(Modifier.fillMaxSize().background(C114Soft).statusBarsPadding())'
 cart_new='Column(Modifier.fillMaxSize().background(C114Soft))'
-if cart_old not in v114: raise SystemExit('active CartV114 status inset anchor missing')
-v114=v114.replace(cart_old,cart_new,1)
+if cart_old not in cart: raise SystemExit('active CartV114 status inset anchor missing')
+cart=cart.replace(cart_old,cart_new,1)
+if '.statusBarsPadding()' in cart: raise SystemExit('CartV114 still has duplicate top inset after targeted fix')
+v114=v114[:ci]+cart+v114[cj:]
 V114.write_text(v114)
 
 # 2. Persist every accepted FCM push before showing the Android system notification.
@@ -81,14 +97,12 @@ new_call='''                    notifications -> NotificationsInboxV138(
                     )'''
 if old_call not in v: raise SystemExit('legacy NotificationsV100 root call anchor missing')
 v=v.replace(old_call,new_call,1)
-
-# Old placeholder composable remains harmless but must no longer be reachable.
 if 'notifications -> NotificationsInboxV138(' not in v: raise SystemExit('real inbox route missing')
 V100.write_text(v)
 
 # 5. Replace hard-coded notification badge "3" in known header implementations
 # with the persistent unread count. Do not touch other badges (cart/RFQ).
-def replace_badges(text,label):
+def replace_badges(text):
     patterns=[
         r'Badge\(containerColor\s*=\s*AutoIdOrange\)\s*\{\s*Text\("3"\)\s*\}',
         r'Badge\(containerColor=AutoIdOrange\)\{Text\("3"\)\}',
@@ -102,7 +116,7 @@ def replace_badges(text,label):
 files=[V100,V114,ACCOUNT]
 replaced=0
 for f in files:
-    text=f.read_text();text,n=replace_badges(text,f.name);replaced+=n;f.write_text(text)
+    text=f.read_text();text,n=replace_badges(text);replaced+=n;f.write_text(text)
 if replaced<2: raise SystemExit(f'expected at least 2 hard-coded notification badges, replaced {replaced}')
 
 # 6. Android-only release code.
@@ -114,7 +128,8 @@ GRADLE.write_text(g)
 # Contracts.
 for required in ['NotificationInboxStoreV138','NotificationsInboxV138','NotificationUnreadBadgeV138']:
     if required not in TARGET.read_text(): raise SystemExit('inbox asset missing '+required)
-if '.background(C114Soft).statusBarsPadding()' in V114.read_text(): raise SystemExit('CartV114 still has duplicate top inset')
+_,_,cart_final=function_block(V114.read_text(),'fun CartV114')
+if '.statusBarsPadding()' in cart_final: raise SystemExit('CartV114 still has duplicate top inset')
 if 'NotificationInboxStoreV138(this).addPush' not in PUSH.read_text(): raise SystemExit('FCM inbox persistence missing')
 if 'NotificationInboxStoreV138(context).addLocal' not in ORDER.read_text(): raise SystemExit('local order inbox persistence missing')
 print(f'RC7.3: active CartV114 inset fixed; persistent notification inbox enabled; {replaced} fake badges replaced; code 13306')
