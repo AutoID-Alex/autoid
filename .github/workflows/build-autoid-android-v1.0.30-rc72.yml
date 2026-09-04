@@ -1,0 +1,141 @@
+name: Build AutoID Android v1.0.30 RC7.2 Layout Addresses
+
+on:
+  push:
+    branches: [mobile-v1.0.30-rc1-rfq]
+    paths:
+      - '.github/workflows/build-autoid-android-v1.0.30-rc72.yml'
+      - 'ci/fix_v1036_layout_addresses.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare generated release sources
+        run: |
+          bash ci/prepare_v1016_release.sh
+          python3 ci/apply_v1017_account_checkout.py
+          python3 ci/apply_v1018_shopify_checkout.py
+          python3 ci/apply_v1019_account_orders_performance.py
+          python3 ci/fix_v1019_kotlin_structure.py
+          python3 ci/apply_v1020_order_detail_rotation.py
+          python3 ci/apply_v1021_unified_order_status.py
+          python3 ci/patch_mobile_v118_account.py
+          python3 ci/patch_mobile_v119_delivery_tracking.py
+          python3 ci/patch_mobile_v1110_gls_awb.py
+          python3 ci/apply_v1022_stripe_sandbox.py
+          python3 ci/apply_v1023_product_reviews_compat.py
+          python3 ci/fix_v1023_kotlin_calls.py
+          python3 ci/apply_v1024_stripe_inline_googlepay.py
+          python3 ci/apply_v1025_stripe_stability_cart_ui.py
+          python3 ci/apply_v1026_home_tabs_notifications.py
+          python3 ci/fix_v1026_kotlin.py
+          python3 ci/apply_v1027_order_actions_awb_review.py
+          python3 ci/fix_v1027_php_newlines.py
+          python3 ci/apply_v1028_fcm_privacy.py
+          python3 ci/fix_v1028_compile.py
+          python3 ci/apply_v1029_native_chat.py
+          python3 ci/apply_v1030_rfq_account.py
+          python3 ci/apply_v1030_chatfix.py
+          python3 ci/apply_v1031_support_v2_chat.py
+          python3 ci/apply_v1032_official_app_chat.py
+          python3 ci/apply_v1033_rfq_header_no_favorites.py
+          python3 ci/apply_v1034_persistent_admin_chat.py
+          python3 ci/apply_v1035_rc7_runner.py
+          python3 ci/fix_v1035_restore_privacy_orders.py
+          python3 ci/fix_v1036_layout_addresses.py
+
+      - name: Verify RC7.2 layout and address contracts
+        run: |
+          set -eu
+          GRADLE=android-v0.1/app/build.gradle.kts
+          V100=android-v0.1/app/src/main/java/ro/autoid/app/V100Screens.kt
+          ACCOUNT=android-v0.1/app/src/main/java/ro/autoid/app/V135AccountUx.kt
+          grep -q 'versionCode = 13305' "$GRADLE"
+          grep -q 'versionName = "1.0.30"' "$GRADLE"
+          grep -q 'AccountDashboardHeaderV136' "$ACCOUNT"
+          grep -q 'Adresa Livrare' "$ACCOUNT"
+          grep -q 'Adresa Facturare' "$ACCOUNT"
+          grep -q 'Date facturare' "$ACCOUNT"
+          grep -q 'Linia 2 a adresei' "$ACCOUNT"
+          grep -q 'Cod TVA / CUI (opțional)' "$ACCOUNT"
+          grep -q 'PrivacyConsentStoreV128' "$ACCOUNT"
+          grep -q 'FirebaseBootstrapV128.applyConsent' "$ACCOUNT"
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('android-v0.1/app/src/main/java/ro/autoid/app/V100Screens.kt').read_text()
+          # Only standalone loading screen + drawer may own explicit status-bar inset.
+          n=s.count('.statusBarsPadding()')
+          assert n==2, f'Expected exactly 2 explicit statusBarsPadding calls, found {n}'
+          for fn in ['fun HomeV100','fun CatalogV100','fun ProductV100','fun CartV100']:
+              i=s.index(fn)
+              j=s.find('\n@Composable',i+10)
+              block=s[i:j if j>0 else len(s)]
+              assert '.statusBarsPadding()' not in block, fn+' still double-applies top inset'
+          print('RC7.2 inset contract OK')
+          PY
+          if grep -R -E 'AUTOID_SUPPORT_APP_TOKEN|OPENAI_API_KEY|sk-[A-Za-z0-9_-]{20,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' android-v0.1/app/src/main; then exit 1; fi
+          keytool -list -v -keystore android-v0.1/autoid-dev.keystore -alias autoiddev -storepass autoiddev2026 | grep -q 'B1:C1:2A:66:11:22:0B:18:E0:42:E0:5D:77:57:9D:82:64:3F:CB:DB'
+
+      - name: Bundle AutoID branding
+        timeout-minutes: 4
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick
+          mkdir -p android-v0.1/app/src/main/res/drawable-nodpi
+          curl -fL --connect-timeout 10 --max-time 45 --retry 2 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/Logo-AutoID.jpg" -o /tmp/autoid-logo.jpg
+          curl -fL --connect-timeout 10 --max-time 45 --retry 2 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/2026/04/AUTOID-icon-1-png.webp" -o android-v0.1/app/src/main/res/drawable-nodpi/autoid_icon_v100.webp
+          convert /tmp/autoid-logo.jpg -alpha on -fuzz 8% -transparent white -trim +repage android-v0.1/app/src/main/res/drawable-nodpi/autoid_logo_transparent.png
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '17'}
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '9.4.1'}
+
+      - name: Build debug APK
+        working-directory: android-v0.1
+        run: |
+          set -o pipefail
+          gradle --no-daemon --stacktrace assembleDebug 2>&1 | tee ../android-v1030-rc72-build.log
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with: {name: AutoID-v1.0.30-RC7.2-build-log, path: android-v1030-rc72-build.log, if-no-files-found: ignore, retention-days: 3}
+
+      - name: Verify APK signing and secret exclusion
+        run: |
+          set -eu
+          APK=android-v0.1/app/build/outputs/apk/debug/app-debug.apk
+          keytool -printcert -jarfile "$APK" | grep -q 'B1:C1:2A:66:11:22:0B:18:E0:42:E0:5D:77:57:9D:82:64:3F:CB:DB'
+          mkdir -p /tmp/autoid-apk-scan
+          unzip -qq "$APK" -d /tmp/autoid-apk-scan
+          if grep -R -a -E 'AUTOID_SUPPORT_APP_TOKEN|OPENAI_API_KEY|sk-[A-Za-z0-9_-]{20,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' /tmp/autoid-apk-scan; then exit 1; fi
+
+      - name: Prepare release files
+        run: |
+          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.30-RC7.2-debug.apk
+          sha256sum AutoID-Professional-Solutions-v1.0.30-RC7.2-debug.apk > AutoID-Professional-Solutions-v1.0.30-RC7.2-debug.sha256
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoID-Professional-Solutions-v1.0.30-RC7.2-Layout-Addresses-APK
+          path: |
+            AutoID-Professional-Solutions-v1.0.30-RC7.2-debug.apk
+            AutoID-Professional-Solutions-v1.0.30-RC7.2-debug.sha256
+          retention-days: 14
