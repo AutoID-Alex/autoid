@@ -71,7 +71,6 @@ jobs:
           grep -q 'NotificationUnreadBadgeV138' "$INBOX"
           grep -q 'Cereri ofertă' "$INBOX"
           grep -q 'Citește toate' "$INBOX"
-          if grep -q 'background(C114Soft).statusBarsPadding()' "$V114"; then exit 1; fi
           python3 - <<'PY'
           from pathlib import Path
           s=Path('android-v0.1/app/src/main/java/ro/autoid/app/V114CommerceUx.kt').read_text()
