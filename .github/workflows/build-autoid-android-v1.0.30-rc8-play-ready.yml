@@ -6,6 +6,8 @@ on:
     paths:
       - '.github/workflows/build-autoid-android-v1.0.30-rc8-play-ready.yml'
       - 'ci/fix_v1040_checkout_play_ready.py'
+      - 'ci/normalize_v1040_checkout_before.py'
+      - 'ci/fix_v1040_checkout_after.py'
       - 'ci/fix_v1037_rfq_guest_email_claim.py'
       - 'ci/fix_v1038_cart_notifications.py'
       - 'play/**'
@@ -58,7 +60,9 @@ jobs:
           python3 ci/fix_v1036_layout_addresses.py
           python3 ci/fix_v1037_rfq_guest_email_claim.py
           python3 ci/fix_v1038_cart_notifications.py
+          python3 ci/normalize_v1040_checkout_before.py
           python3 ci/fix_v1040_checkout_play_ready.py
+          python3 ci/fix_v1040_checkout_after.py
 
       - name: Validate RC8 contracts
         run: |
@@ -73,6 +77,8 @@ jobs:
           grep -q 'versionCode = 13307' "$GRADLE"
           grep -q 'Salvează adresele' "$UI"
           grep -q 'saveAccountAddresses' "$UI"
+          grep -q 'firstName=billingFirst' "$UI"
+          grep -q 'firstName=sf' "$UI"
           grep -q 'requestAccountDeletionV140' "$API"
           grep -q 'Solicită ștergerea contului' "$ACCOUNT"
           grep -q 'Version: 1.1.30' "$PLUGIN"
