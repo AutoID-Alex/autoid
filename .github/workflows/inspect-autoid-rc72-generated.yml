@@ -1,0 +1,53 @@
+name: Inspect AutoID RC7.2 Cart Notifications
+
+on:
+  push:
+    branches: [mobile-v1.0.30-rc1-rfq]
+    paths:
+      - '.github/workflows/inspect-autoid-rc72-generated.yml'
+      - 'ci/inspect_v1038_generated.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate RC7.2 sources
+        run: |
+          bash ci/prepare_v1016_release.sh
+          python3 ci/apply_v1017_account_checkout.py
+          python3 ci/apply_v1018_shopify_checkout.py
+          python3 ci/apply_v1019_account_orders_performance.py
+          python3 ci/fix_v1019_kotlin_structure.py
+          python3 ci/apply_v1020_order_detail_rotation.py
+          python3 ci/apply_v1021_unified_order_status.py
+          python3 ci/patch_mobile_v118_account.py
+          python3 ci/patch_mobile_v119_delivery_tracking.py
+          python3 ci/patch_mobile_v1110_gls_awb.py
+          python3 ci/apply_v1022_stripe_sandbox.py
+          python3 ci/apply_v1023_product_reviews_compat.py
+          python3 ci/fix_v1023_kotlin_calls.py
+          python3 ci/apply_v1024_stripe_inline_googlepay.py
+          python3 ci/apply_v1025_stripe_stability_cart_ui.py
+          python3 ci/apply_v1026_home_tabs_notifications.py
+          python3 ci/fix_v1026_kotlin.py
+          python3 ci/apply_v1027_order_actions_awb_review.py
+          python3 ci/fix_v1027_php_newlines.py
+          python3 ci/apply_v1028_fcm_privacy.py
+          python3 ci/fix_v1028_compile.py
+          python3 ci/apply_v1029_native_chat.py
+          python3 ci/apply_v1030_rfq_account.py
+          python3 ci/apply_v1030_chatfix.py
+          python3 ci/apply_v1031_support_v2_chat.py
+          python3 ci/apply_v1032_official_app_chat.py
+          python3 ci/apply_v1033_rfq_header_no_favorites.py
+          python3 ci/apply_v1034_persistent_admin_chat.py
+          python3 ci/apply_v1035_rc7_runner.py
+          python3 ci/fix_v1035_restore_privacy_orders.py
+          python3 ci/fix_v1036_layout_addresses.py
+      - name: Inspect final generated sources
+        run: python3 ci/inspect_v1038_generated.py
