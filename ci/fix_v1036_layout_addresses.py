@@ -8,12 +8,6 @@ V100=APP/'V100Screens.kt'
 ACCOUNT=APP/'V135AccountUx.kt'
 GRADLE=ROOT/'android-v0.1/app/build.gradle.kts'
 
-# -----------------------------------------------------------------------------
-# 1) Primary app screens live inside Scaffold, whose content padding already
-#    includes the status bar inset. Preserve explicit status inset only for the
-#    standalone loading screen and drawer, then remove all duplicate screen
-#    statusBarsPadding() calls.
-# -----------------------------------------------------------------------------
 v=V100.read_text()
 loading_keep='.background(Color.White).statusBarsPadding()'
 drawer_keep='.padding(18.dp).statusBarsPadding()'
@@ -28,17 +22,12 @@ removed=v.count('.statusBarsPadding()')
 if removed < 4:
     raise SystemExit(f'RC7.2 expected duplicate status inset on at least 4 Scaffold screens, found {removed}')
 v=v.replace('.statusBarsPadding()','')
-v=v.replace('.background(Color.White).__AUTOID_KEEP_STATUS_V136__()',','.background(Color.White).statusBarsPadding(),') if False else v
 v=v.replace('.background(Color.White).__AUTOID_KEEP_STATUS_V136__()','.background(Color.White).statusBarsPadding()')
 v=v.replace('.padding(18.dp).__AUTOID_KEEP_STATUS_V136__()','.padding(18.dp).statusBarsPadding()')
 if '__AUTOID_KEEP_STATUS_V136__' in v:
     raise SystemExit('RC7.2 status inset sentinel remains')
 V100.write_text(v)
 
-# -----------------------------------------------------------------------------
-# 2) Account dashboard header. Account sub-pages already have correct top
-#    spacing, so the header is added only to the dashboard.
-# -----------------------------------------------------------------------------
 a=ACCOUNT.read_text()
 for anchor, imp in [
     ('import androidx.compose.foundation.background\n','import androidx.compose.foundation.Image\n'),
@@ -73,10 +62,6 @@ if hero_anchor not in a:
     raise SystemExit('RC7.2 account dashboard hero anchor missing')
 a=a.replace(hero_anchor,hero_new,1)
 
-# -----------------------------------------------------------------------------
-# 3) Rebuild account address page. Keep phone/email already stored in the
-#    AccountAddress objects untouched; edit only the fields explicitly required.
-# -----------------------------------------------------------------------------
 start=a.find('@Composable private fun AddressSummaryV135')
 end=a.find('@Composable private fun AccountPaymentsV135',start)
 if start < 0 or end < 0:
@@ -190,7 +175,6 @@ for required in [
     if required not in a: raise SystemExit('RC7.2 account/address contract missing '+required)
 ACCOUNT.write_text(a)
 
-# Distinct Android build code; WordPress remains 1.1.28 because this release has no backend change.
 g=GRADLE.read_text()
 if 'versionCode = 13304' not in g:
     raise SystemExit('RC7.2 version code anchor missing')
