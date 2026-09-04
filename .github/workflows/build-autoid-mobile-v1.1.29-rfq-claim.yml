@@ -1,0 +1,93 @@
+name: Build AutoID Mobile v1.1.29 RFQ Guest Claim
+
+on:
+  push:
+    branches: [mobile-v1.0.30-rc1-rfq]
+    paths:
+      - '.github/workflows/build-autoid-mobile-v1.1.29-rfq-claim.yml'
+      - 'ci/fix_v1037_rfq_guest_email_claim.py'
+      - 'ci/apply_v1030_rfq_account.py'
+      - 'ci/v130/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-plugin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate current plugin source
+        run: |
+          set -eu
+          bash ci/prepare_v1016_release.sh
+          python3 ci/apply_v1017_account_checkout.py
+          python3 ci/apply_v1018_shopify_checkout.py
+          python3 ci/apply_v1019_account_orders_performance.py
+          python3 ci/fix_v1019_kotlin_structure.py
+          python3 ci/apply_v1020_order_detail_rotation.py
+          python3 ci/apply_v1021_unified_order_status.py
+          python3 ci/patch_mobile_v118_account.py
+          python3 ci/patch_mobile_v119_delivery_tracking.py
+          python3 ci/patch_mobile_v1110_gls_awb.py
+          python3 ci/apply_v1022_stripe_sandbox.py
+          python3 ci/apply_v1023_product_reviews_compat.py
+          python3 ci/fix_v1023_kotlin_calls.py
+          python3 ci/apply_v1024_stripe_inline_googlepay.py
+          python3 ci/apply_v1025_stripe_stability_cart_ui.py
+          python3 ci/apply_v1026_home_tabs_notifications.py
+          python3 ci/fix_v1026_kotlin.py
+          python3 ci/apply_v1027_order_actions_awb_review.py
+          python3 ci/fix_v1027_php_newlines.py
+          python3 ci/apply_v1028_fcm_privacy.py
+          python3 ci/fix_v1028_compile.py
+          python3 ci/apply_v1029_native_chat.py
+          python3 ci/apply_v1030_rfq_account.py
+          python3 ci/apply_v1030_chatfix.py
+          python3 ci/apply_v1031_support_v2_chat.py
+          python3 ci/apply_v1032_official_app_chat.py
+          python3 ci/apply_v1033_rfq_header_no_favorites.py
+          python3 ci/apply_v1034_persistent_admin_chat.py
+          python3 ci/apply_v1035_rc7_runner.py
+          python3 ci/fix_v1035_restore_privacy_orders.py
+          python3 ci/fix_v1037_rfq_guest_email_claim.py
+
+      - name: Validate RFQ claim contract
+        run: |
+          set -eu
+          PLUGIN=wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+          php -l "$PLUGIN"
+          grep -q 'Version: 1.1.29' "$PLUGIN"
+          grep -q 'rfq_claim_guest_by_email_v131' "$PLUGIN"
+          grep -q '_autoid_rfq_email' "$PLUGIN"
+          grep -q 'authenticated_email_match' "$PLUGIN"
+          grep -q 'self::rfq_claim_guest_by_email_v131($uid)' "$PLUGIN"
+          grep -q 'if($stored>0||$legacy_owner>0)continue;' "$PLUGIN"
+          grep -q 'hash_equals($email,$requester_email)' "$PLUGIN"
+
+      - name: Package direct-install plugin
+        run: |
+          set -eu
+          rm -rf release-wordpress wordpress/autoid-mobile
+          cp -R wordpress/autoid-mobile-commerce wordpress/autoid-mobile
+          mv wordpress/autoid-mobile/autoid-mobile-commerce.php wordpress/autoid-mobile/autoid-mobile.php
+          mkdir -p release-wordpress
+          cp -R wordpress/autoid-mobile release-wordpress/autoid-mobile
+          test -f release-wordpress/autoid-mobile/autoid-mobile.php
+          grep -q 'Plugin Name: AutoID Mobile' release-wordpress/autoid-mobile/autoid-mobile.php
+          grep -q 'Version: 1.1.29' release-wordpress/autoid-mobile/autoid-mobile.php
+          php -l release-wordpress/autoid-mobile/autoid-mobile.php
+          cd release-wordpress
+          zip -qr ../AutoID-Mobile-v1.1.29-WORDPRESS-DIRECT-INSTALL.zip autoid-mobile
+
+      - name: Upload WordPress plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoID-Mobile-v1.1.29-WORDPRESS-DIRECT-INSTALL
+          path: AutoID-Mobile-v1.1.29-WORDPRESS-DIRECT-INSTALL.zip
+          if-no-files-found: error
+          retention-days: 14
