@@ -19,6 +19,8 @@ def block(text, needle):
     return text[start:start+6000]
 
 v100=(ROOT/'V100Screens.kt').read_text()
+print('=== ROOT_APP_V100 ===')
+print(block(v100,'fun AutoIdAppV100'))
 print('=== CART_V100 ===')
 print(block(v100,'fun CartV100'))
 print('=== NOTIFICATIONS_V100 ===')
