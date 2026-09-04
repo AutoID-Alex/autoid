@@ -8,13 +8,22 @@ PLUGIN=ROOT/'wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php'
 s=PLUGIN.read_text()
 
 # Store normalized requester email directly for new guest/account RFQs.
-old="""        foreach(['_autoid_rfq_code'=>$code,'_autoid_rfq_status'=>'noua','_autoid_rfq_requester'=>$requester,'_autoid_rfq_user_id'=>$uid,
-            '_autoid_rfq_items'=>$items,'_autoid_rfq_note'=>$note,'_autoid_rfq_consent'=>1,'_autoid_rfq_create_account'=>0,"""
-new="""        foreach(['_autoid_rfq_code'=>$code,'_autoid_rfq_status'=>'noua','_autoid_rfq_requester'=>$requester,'_autoid_rfq_user_id'=>$uid,'_autoid_rfq_email'=>strtolower($email),
-            '_autoid_rfq_items'=>$items,'_autoid_rfq_note'=>$note,'_autoid_rfq_consent'=>1,'_autoid_rfq_create_account'=>0,"""
-if old not in s:
-    raise SystemExit('RFQ create meta anchor missing')
-s=s.replace(old,new,1)
+# Patch only inside rfq_create_v130 so formatting changes from later generators
+# cannot break the release again.
+create_start=s.find('    public static function rfq_create_v130(WP_REST_Request $r) {')
+if create_start<0:
+    raise SystemExit('RFQ create function missing')
+create_end=s.find('\n    private static function ',create_start+10)
+if create_end<0:
+    raise SystemExit('RFQ create function boundary missing')
+create_block=s[create_start:create_end]
+email_meta="'_autoid_rfq_email'=>strtolower(trim($email))"
+if email_meta not in create_block:
+    owner_meta="'_autoid_rfq_user_id'=>$uid,"
+    if owner_meta not in create_block:
+        raise SystemExit('RFQ create user meta anchor missing')
+    create_block=create_block.replace(owner_meta,owner_meta+email_meta+',',1)
+    s=s[:create_start]+create_block+s[create_end:]
 
 # Add claim helper before the ownership check. Existing RFQs are supported by
 # exact comparison against requester[email]; _autoid_rfq_email is only an index.
@@ -52,9 +61,10 @@ helper='''    private static function rfq_claim_guest_by_email_v131($user_id,$on
     }
 
 '''
-if anchor not in s:
-    raise SystemExit('RFQ owner anchor missing')
-s=s.replace(anchor,helper+anchor,1)
+if 'private static function rfq_claim_guest_by_email_v131(' not in s:
+    if anchor not in s:
+        raise SystemExit('RFQ owner anchor missing')
+    s=s.replace(anchor,helper+anchor,1)
 
 # Any direct RFQ access can claim one matching guest record after authentication.
 old_owner='''    private static function rfq_owner_v130($rfq_id,$user_id) {
@@ -75,18 +85,20 @@ new_owner='''    private static function rfq_owner_v130($rfq_id,$user_id) {
         $stored=absint(get_post_meta($rfq_id,'_autoid_rfq_user_id',true));
         return $stored===$user_id;
     }'''
-if old_owner not in s:
-    raise SystemExit('RFQ owner function exact anchor missing')
-s=s.replace(old_owner,new_owner,1)
+if new_owner not in s:
+    if old_owner not in s:
+        raise SystemExit('RFQ owner function exact anchor missing')
+    s=s.replace(old_owner,new_owner,1)
 
 # Claim all matching guest RFQs before the account list query runs.
 old_list='''    public static function rfq_list_v130(WP_REST_Request $r) {
         $uid=absint($r->get_param('_autoid_user_id'));$page=max(1,absint($r->get_param('page')));$per=max(1,min(30,absint($r->get_param('per_page'))?:10));'''
 new_list='''    public static function rfq_list_v130(WP_REST_Request $r) {
         $uid=absint($r->get_param('_autoid_user_id'));self::rfq_claim_guest_by_email_v131($uid);$page=max(1,absint($r->get_param('page')));$per=max(1,min(30,absint($r->get_param('per_page'))?:10));'''
-if old_list not in s:
-    raise SystemExit('RFQ list anchor missing')
-s=s.replace(old_list,new_list,1)
+if new_list not in s:
+    if old_list not in s:
+        raise SystemExit('RFQ list anchor missing')
+    s=s.replace(old_list,new_list,1)
 
 # Distinct backend release.
 for oldv,newv in [
