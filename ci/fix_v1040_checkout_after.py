@@ -64,3 +64,8 @@ for required in ['api.saveAccountAddresses','firstName=billingFirst','firstName=
 
 p.write_text(s)
 print('RC8 checkout save mapped to stable generated field names and color tokens')
+print('--- RC8 generated V114 lines 285-305 ---')
+for n,line in enumerate(s.splitlines(),1):
+    if 285 <= n <= 305:
+        print(f'{n:04d}: {line}')
+print('--- end RC8 generated V114 diagnostics ---')
