@@ -1,0 +1,200 @@
+name: Build AutoID Android v1.0.30 RC8 Play Ready
+
+on:
+  push:
+    branches: [mobile-v1.0.30-rc1-rfq]
+    paths:
+      - '.github/workflows/build-autoid-android-v1.0.30-rc8-play-ready.yml'
+      - 'ci/fix_v1040_checkout_play_ready.py'
+      - 'ci/fix_v1037_rfq_guest_email_claim.py'
+      - 'ci/fix_v1038_cart_notifications.py'
+      - 'play/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate RC8 source
+        run: |
+          set -eu
+          bash ci/prepare_v1016_release.sh
+          python3 ci/apply_v1017_account_checkout.py
+          python3 ci/apply_v1018_shopify_checkout.py
+          python3 ci/apply_v1019_account_orders_performance.py
+          python3 ci/fix_v1019_kotlin_structure.py
+          python3 ci/apply_v1020_order_detail_rotation.py
+          python3 ci/apply_v1021_unified_order_status.py
+          python3 ci/patch_mobile_v118_account.py
+          python3 ci/patch_mobile_v119_delivery_tracking.py
+          python3 ci/patch_mobile_v1110_gls_awb.py
+          python3 ci/apply_v1022_stripe_sandbox.py
+          python3 ci/apply_v1023_product_reviews_compat.py
+          python3 ci/fix_v1023_kotlin_calls.py
+          python3 ci/apply_v1024_stripe_inline_googlepay.py
+          python3 ci/apply_v1025_stripe_stability_cart_ui.py
+          python3 ci/apply_v1026_home_tabs_notifications.py
+          python3 ci/fix_v1026_kotlin.py
+          python3 ci/apply_v1027_order_actions_awb_review.py
+          python3 ci/fix_v1027_php_newlines.py
+          python3 ci/apply_v1028_fcm_privacy.py
+          python3 ci/fix_v1028_compile.py
+          python3 ci/apply_v1029_native_chat.py
+          python3 ci/apply_v1030_rfq_account.py
+          python3 ci/apply_v1030_chatfix.py
+          python3 ci/apply_v1031_support_v2_chat.py
+          python3 ci/apply_v1032_official_app_chat.py
+          python3 ci/apply_v1033_rfq_header_no_favorites.py
+          python3 ci/apply_v1034_persistent_admin_chat.py
+          python3 ci/apply_v1035_rc7_runner.py
+          python3 ci/fix_v1035_restore_privacy_orders.py
+          python3 ci/fix_v1036_layout_addresses.py
+          python3 ci/fix_v1037_rfq_guest_email_claim.py
+          python3 ci/fix_v1038_cart_notifications.py
+          python3 ci/fix_v1040_checkout_play_ready.py
+
+      - name: Validate RC8 contracts
+        run: |
+          set -eu
+          APP=android-v0.1/app/src/main
+          GRADLE=android-v0.1/app/build.gradle.kts
+          UI=android-v0.1/app/src/main/java/ro/autoid/app/V114CommerceUx.kt
+          ACCOUNT=android-v0.1/app/src/main/java/ro/autoid/app/V135AccountUx.kt
+          API=android-v0.1/app/src/main/java/ro/autoid/app/data/AutoIdApi.kt
+          PLUGIN=wordpress/autoid-mobile-commerce/autoid-mobile-commerce.php
+          grep -q 'targetSdk = 36' "$GRADLE"
+          grep -q 'versionCode = 13307' "$GRADLE"
+          grep -q 'Salvează adresele' "$UI"
+          grep -q 'saveAccountAddresses' "$UI"
+          grep -q 'requestAccountDeletionV140' "$API"
+          grep -q 'Solicită ștergerea contului' "$ACCOUNT"
+          grep -q 'Version: 1.1.30' "$PLUGIN"
+          grep -q '/me/account-deletion' "$PLUGIN"
+          grep -q 'sterge-cont-autoid' "$PLUGIN"
+          grep -q 'android:allowBackup="false"' "$APP/AndroidManifest.xml"
+          grep -q 'android:usesCleartextTraffic="false"' "$APP/AndroidManifest.xml"
+          php -l "$PLUGIN"
+          if grep -R -E 'AUTOID_SUPPORT_APP_TOKEN|OPENAI_API_KEY|sk-[A-Za-z0-9_-]{20,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' "$APP"; then exit 1; fi
+          if grep -E 'READ_CONTACTS|READ_SMS|READ_CALL_LOG|ACCESS_FINE_LOCATION|ACCESS_COARSE_LOCATION|READ_MEDIA_IMAGES|READ_MEDIA_VIDEO' "$APP/AndroidManifest.xml"; then exit 1; fi
+
+      - name: Package WordPress 1.1.30
+        run: |
+          set -eu
+          rm -rf release-wordpress wordpress/autoid-mobile
+          cp -R wordpress/autoid-mobile-commerce wordpress/autoid-mobile
+          mv wordpress/autoid-mobile/autoid-mobile-commerce.php wordpress/autoid-mobile/autoid-mobile.php
+          mkdir -p release-wordpress
+          cp -R wordpress/autoid-mobile release-wordpress/autoid-mobile
+          php -l release-wordpress/autoid-mobile/autoid-mobile.php
+          grep -q 'Version: 1.1.30' release-wordpress/autoid-mobile/autoid-mobile.php
+          cd release-wordpress
+          zip -qr ../AutoID-Mobile-v1.1.30-WORDPRESS-DIRECT-INSTALL.zip autoid-mobile
+
+      - name: Bundle AutoID branding
+        timeout-minutes: 4
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick
+          mkdir -p android-v0.1/app/src/main/res/drawable-nodpi
+          curl -fL --connect-timeout 10 --max-time 45 --retry 2 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/Logo-AutoID.jpg" -o /tmp/autoid-logo.jpg
+          curl -fL --connect-timeout 10 --max-time 45 --retry 2 --retry-delay 2 "https://www.autoid.ro/wp-content/uploads/2026/04/AUTOID-icon-1-png.webp" -o android-v0.1/app/src/main/res/drawable-nodpi/autoid_icon_v100.webp
+          convert /tmp/autoid-logo.jpg -alpha on -fuzz 8% -transparent white -trim +repage android-v0.1/app/src/main/res/drawable-nodpi/autoid_logo_transparent.png
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.4.1'
+
+      - name: Build test APK and release AAB preflight
+        working-directory: android-v0.1
+        run: |
+          set -o pipefail
+          gradle --no-daemon --stacktrace assembleDebug bundleRelease 2>&1 | tee ../android-v1030-rc8-build.log
+
+      - name: Verify APK/AAB secret exclusion
+        run: |
+          set -eu
+          APK=android-v0.1/app/build/outputs/apk/debug/app-debug.apk
+          AAB=android-v0.1/app/build/outputs/bundle/release/app-release.aab
+          test -s "$APK"
+          test -s "$AAB"
+          rm -rf /tmp/autoid-apk-scan /tmp/autoid-aab-scan
+          mkdir -p /tmp/autoid-apk-scan /tmp/autoid-aab-scan
+          unzip -qq "$APK" -d /tmp/autoid-apk-scan
+          unzip -qq "$AAB" -d /tmp/autoid-aab-scan
+          if grep -R -a -E 'AUTOID_SUPPORT_APP_TOKEN|OPENAI_API_KEY|sk-[A-Za-z0-9_-]{20,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' /tmp/autoid-apk-scan /tmp/autoid-aab-scan; then exit 1; fi
+
+      - name: Optional sign Play upload bundle from secrets
+        env:
+          PLAY_UPLOAD_KEYSTORE_B64: ${{ secrets.PLAY_UPLOAD_KEYSTORE_B64 }}
+          PLAY_UPLOAD_KEY_ALIAS: ${{ secrets.PLAY_UPLOAD_KEY_ALIAS }}
+          PLAY_UPLOAD_STORE_PASSWORD: ${{ secrets.PLAY_UPLOAD_STORE_PASSWORD }}
+          PLAY_UPLOAD_KEY_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEY_PASSWORD }}
+        run: |
+          set -eu
+          AAB=android-v0.1/app/build/outputs/bundle/release/app-release.aab
+          cp "$AAB" AutoID-v1.0.30-RC8-play-preflight.aab
+          if [ -n "${PLAY_UPLOAD_KEYSTORE_B64:-}" ] && [ -n "${PLAY_UPLOAD_KEY_ALIAS:-}" ] && [ -n "${PLAY_UPLOAD_STORE_PASSWORD:-}" ] && [ -n "${PLAY_UPLOAD_KEY_PASSWORD:-}" ]; then
+            printf '%s' "$PLAY_UPLOAD_KEYSTORE_B64" | base64 -d > /tmp/autoid-play-upload.jks
+            jarsigner -keystore /tmp/autoid-play-upload.jks -storepass "$PLAY_UPLOAD_STORE_PASSWORD" -keypass "$PLAY_UPLOAD_KEY_PASSWORD" -sigalg SHA256withRSA -digestalg SHA-256 "$AAB" "$PLAY_UPLOAD_KEY_ALIAS"
+            jarsigner -verify "$AAB"
+            cp "$AAB" AutoID-v1.0.30-RC8-play-upload-signed.aab
+            rm -f /tmp/autoid-play-upload.jks
+          else
+            echo 'Play upload-key secrets are not configured yet; unsigned/preflight AAB produced as expected.'
+          fi
+
+      - name: Prepare release files
+        run: |
+          cp android-v0.1/app/build/outputs/apk/debug/app-debug.apk AutoID-Professional-Solutions-v1.0.30-RC8-debug.apk
+          sha256sum AutoID-Professional-Solutions-v1.0.30-RC8-debug.apk AutoID-v1.0.30-RC8-play-preflight.aab AutoID-Mobile-v1.1.30-WORDPRESS-DIRECT-INSTALL.zip > AutoID-v1.0.30-RC8.sha256
+          cp play/PLAY_RELEASE_READINESS.md AutoID-Google-Play-Release-Readiness.md
+
+      - name: Upload Android RC8
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoID-v1.0.30-RC8-PLAY-READY
+          path: |
+            AutoID-Professional-Solutions-v1.0.30-RC8-debug.apk
+            AutoID-v1.0.30-RC8-play-preflight.aab
+            AutoID-v1.0.30-RC8-play-upload-signed.aab
+            AutoID-v1.0.30-RC8.sha256
+            AutoID-Google-Play-Release-Readiness.md
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload WordPress 1.1.30
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoID-Mobile-v1.1.30-WORDPRESS-DIRECT-INSTALL
+          path: AutoID-Mobile-v1.1.30-WORDPRESS-DIRECT-INSTALL.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoID-v1.0.30-RC8-build-log
+          path: android-v1030-rc8-build.log
+          if-no-files-found: ignore
+          retention-days: 3
